@@ -77,6 +77,42 @@ jobs:
           done
           jq -r '.assets[].name' release.json > firmware/release-assets.txt
 
+      - name: Reassemble split partition assets and inspect super
+        run: |
+          set -euo pipefail
+          # Reassemble split GitHub release assets in numeric order.
+          for base in product_a.img super.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img; do
+            [ -f "firmware/$base" ] && continue
+            mapfile -t chunks < <(find firmware -maxdepth 1 -type f -name "$base.part*" | sort -V)
+            if [ "${#chunks[@]}" -gt 0 ]; then
+              echo "Reassembling $base from ${#chunks[@]} chunks"
+              cat "${chunks[@]}" > "firmware/$base"
+            fi
+          done
+          if [ -f firmware/super.img ]; then
+            mkdir -p analysis/super
+            if command -v lpunpack >/dev/null 2>&1; then
+              lpunpack firmware/super.img analysis/super || echo "::warning::lpunpack could not unpack super.img"
+            else
+              echo "::warning::lpunpack unavailable; super.img retained without extraction"
+            fi
+            for image in analysis/super/*.img; do
+              [ -f "$image" ] || continue
+              name="$(basename "$image" .img)"
+              case "$name" in vendor|odm|system|system_ext|product|vendor_dlkm|system_dlkm|odm_dlkm)
+                mkdir -p "analysis/$name"
+                [ -n "$(find "analysis/$name" -mindepth 1 -print -quit 2>/dev/null)" ] && continue
+                magic="$(od -An -tx1 -N4 "$image" | tr -d ' \\n')"
+                if [ "$magic" = "3aff26ed" ]; then simg2img "$image" "firmware/${name}_super_raw.img"; image="firmware/${name}_super_raw.img"; fi
+                erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \\n' || true)"
+                if [ "$erofs_magic" = "e0f5e1e2" ]; then
+                  fsck.erofs --extract="analysis/$name" "$image"
+                else
+                  sudo mount -o loop,ro,noload "$image" "analysis/$name" || echo "::warning::Could not mount super partition $name"
+                fi
+              esac
+            done
+          fi
       - name: Extract available Android filesystem partitions
         run: |
           set -euo pipefail
@@ -254,7 +290,12 @@ jobs:
           add()
           add("| Binary | Result | Detail |")
           add("|---|---|---|")
-          lib_roots = [part / libdir for part in all_fs_roots for libdir in ("lib64", "lib")]
+          # Include nested roots too: some images expose an extra system/ prefix.
+          lib_roots = []
+          for part in all_fs_roots:
+              for libdir in ("lib64", "lib"):
+                  lib_roots.extend(p for p in part.rglob(libdir) if p.is_dir())
+          lib_roots = list(dict.fromkeys(lib_roots))
           staged_roots = [recovery / "vendor/lib64", recovery / "vendor/lib", recovery / "vendor/odm/lib64"]
           binaries = [
             ("wpa_supplicant", vendor / "bin/hw/wpa_supplicant"),
@@ -370,6 +411,15 @@ jobs:
             firmware/release-assets.txt
             analysis/boot/**
             analysis/vendor_boot/**
+            analysis/super/**
+            analysis/vendor/**
+            analysis/odm/**
+            analysis/system/**
+            analysis/system_ext/**
+            analysis/product/**
+            analysis/vendor_dlkm/**
+            analysis/system_dlkm/**
+            analysis/odm_dlkm/**
           if-no-files-found: warn
 
       - name: Unmount extracted filesystem images
