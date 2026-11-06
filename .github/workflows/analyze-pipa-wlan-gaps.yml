@@ -217,6 +217,34 @@ jobs:
               sudo mount -o loop,ro,noload "$image" "analysis/$part" || echo "::warning::Could not mount partition $part"
             fi
           done
+          # Extract every standalone filesystem image in the fastboot ROM,
+          # not just the partitions required by the WLAN checks.
+          mkdir -p analysis/standalone
+          for image in firmware/*.img; do
+            [ -f "$image" ] || continue
+            base="$(basename "$image" .img)"
+            case "$base" in super|super_raw|*_raw) continue ;; esac
+            out="analysis/standalone/$base"
+            [ -n "$(find "$out" -mindepth 1 -print -quit 2>/dev/null || true)" ] && continue
+            mkdir -p "$out"
+            magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \n' || true)"
+            if [ "$magic" = "e0f5e1e2" ]; then
+              tmp="${out}.extract"; rm -rf "$tmp"; mkdir -p "$tmp"
+              if fsck.erofs --extract="$tmp" "$image"; then
+                sudo find "$tmp" -type d -exec chmod 755 {} + 2>/dev/null || true
+                sudo find "$tmp" -type f -exec chmod 644 {} + 2>/dev/null || true
+                rmdir "$out" 2>/dev/null || true; mv "$tmp" "$out"
+              else
+                echo "::warning::Could not extract EROFS image $base"
+                rm -rf "$tmp"
+              fi
+            elif file "$image" | grep -qi 'ext[234] filesystem'; then
+              sudo mount -o loop,ro,noload "$image" "$out" || echo "::warning::Could not mount ext image $base"
+            else
+              rmdir "$out" 2>/dev/null || true
+              echo "Non-filesystem image retained: $base"
+            fi
+          done
 
       - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
@@ -258,7 +286,11 @@ jobs:
           odm = Path("analysis/odm")
           partition_names = ["system", "system_ext", "product", "vendor_dlkm", "system_dlkm", "odm_dlkm"]
           other_parts = {name: Path("analysis") / name for name in partition_names if (Path("firmware") / f"{name}_a.img").exists() or (Path("firmware") / f"{name}.img").exists()}
-          all_fs_roots = [vendor, odm, *other_parts.values()]
+          logical_parts_root = Path("analysis/partitions")
+          logical_parts = {p.name: p for p in logical_parts_root.iterdir() if p.is_dir()} if logical_parts_root.exists() else {}
+          standalone_root = Path("analysis/standalone")
+          standalone_parts = {p.name: p for p in standalone_root.iterdir() if p.is_dir()} if standalone_root.exists() else {}
+          all_fs_roots = [vendor, odm, *other_parts.values(), *logical_parts.values(), *standalone_parts.values()]
           recovery = Path("recovery/root")
           report = []
           findings = []
@@ -354,7 +386,7 @@ jobs:
           add("| Partition | WLAN firmware/config matches |")
           add("|---|---|")
           asset_re = re.compile(r"(WCNSS.*\\.(?:ini|mbn)|wlan_mac\\.bin|bdwlan\\.bin|\\.(?:mbn|elf)$|/wlan/|/wifi/)", re.I)
-          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items()]:
+          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items(), *logical_parts.items(), *standalone_parts.items()]:
               hits = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and asset_re.search("/" + str(p.relative_to(part_root)))]
               add(f"| {part_name} | " + (", ".join(hits[:150]) if hits else "No filename matches") + " |")
 
@@ -435,7 +467,7 @@ jobs:
           add("| Partition | WLAN-related files found |")
           add("|---|---|")
           wlan_pattern = re.compile(r"(wlan|wifi|qca|cnss|icnss|supplicant|hostapd|\.ko$)", re.I)
-          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items()]:
+          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items(), *logical_parts.items(), *standalone_parts.items()]:
               matches = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and wlan_pattern.search(p.name)]
               add(f"| {part_name} | " + (", ".join(matches[:100]) if matches else "No filename matches") + " |")
           for part_name in ("boot", "vendor_boot"):
@@ -523,6 +555,10 @@ jobs:
             analysis/boot/**
             analysis/vendor_boot/**
             analysis/super/**
+            analysis/partitions/**
+            analysis/standalone/**
+            analysis/rom-image-inventory.txt
+            analysis/super-partition-inventory.txt
             analysis/vendor/**
             analysis/odm/**
             analysis/system/**
