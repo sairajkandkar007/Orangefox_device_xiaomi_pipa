@@ -160,6 +160,13 @@ jobs:
             [ -f "$image" ] || image="firmware/${part}.img"
             [ -f "$image" ] || continue
             mkdir -p "analysis/$part"
+            # The same logical partition may already have been extracted from
+            # super.img. Never extract over an existing tree: fsck.erofs fails
+            # on duplicate files and leaves the audit half-finished.
+            if [ -n "$(find "analysis/$part" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+              echo "$part already populated from super.img; skipping duplicate extraction"
+              continue
+            fi
             magic="$(od -An -tx1 -N4 "$image" | tr -d ' \\n')"
             if [ "$magic" = "3aff26ed" ]; then
               simg2img "$image" "firmware/${part}_raw.img"
@@ -168,9 +175,20 @@ jobs:
             echo "$part: $(file -b "$image")"
             erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \\n' || true)"
             if [ "$erofs_magic" = "e0f5e1e2" ]; then
-              fsck.erofs --extract="analysis/$part" "$image"
+              extract_dir="analysis/${part}.extract"
+              rm -rf "$extract_dir"
+              mkdir -p "$extract_dir"
+              if fsck.erofs --extract="$extract_dir" "$image"; then
+                sudo find "$extract_dir" -type d -exec chmod 755 {} + 2>/dev/null || true
+                sudo find "$extract_dir" -type f -exec chmod 644 {} + 2>/dev/null || true
+                rmdir "analysis/$part" 2>/dev/null || true
+                mv "$extract_dir" "analysis/$part"
+              else
+                echo "::warning::Could not extract EROFS partition $part"
+                rm -rf "$extract_dir"
+              fi
             else
-              sudo mount -o loop,ro,noload "$image" "analysis/$part"
+              sudo mount -o loop,ro,noload "$image" "analysis/$part" || echo "::warning::Could not mount partition $part"
             fi
           done
 
@@ -462,7 +480,11 @@ jobs:
       - name: Make analysis files readable for artifact upload
         if: always()
         run: |
-          sudo chmod -R a+rX reports firmware analysis 2>/dev/null || true
+          # EROFS extraction can preserve restrictive source permissions (for
+          # example, directories with mode 000). Normalize the exported copy;
+          # do not rely on chmod -R alone, which may fail to descend into them.
+          sudo find reports firmware analysis -type d -exec chmod 755 {} + 2>/dev/null || true
+          sudo find reports firmware analysis -type f -exec chmod 644 {} + 2>/dev/null || true
 
       - name: Upload WLAN gap report
         if: always()
