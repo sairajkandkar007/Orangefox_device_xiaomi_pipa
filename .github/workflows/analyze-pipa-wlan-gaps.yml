@@ -640,7 +640,8 @@ jobs:
           add()
           if findings:
               for severity, label, detail in findings:
-                  add(f"- **{severity}: {label}** — {detail}")          else:
+                  add(f"- **{severity}: {label}** — {detail}")
+          else:
               add("- No missing static checks detected. Hardware validation is still required.")
           add()
           add("## Interpretation")
