@@ -1,8 +1,8 @@
 # Copyright (C) 2026 Pipa OrangeFox contributors
 # SPDX-License-Identifier: Apache-2.0
 
-# Never expose modem NV partitions to the vendor daemon as writable block devices.
-service vendor.rmt_storage /vendor/bin/rmt_storage_ro.sh
+# Modem NV/EFS partitions are exposed read-only to rmt_storage.
+service vendor.rmt_storage /system/bin/sh /vendor/bin/rmt_storage_ro.sh
     user root
     group system wakelock
     setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw:/system/lib64:/vendor/odm/lib64:/bin
