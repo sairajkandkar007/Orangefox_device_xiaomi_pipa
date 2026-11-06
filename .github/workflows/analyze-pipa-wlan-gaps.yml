@@ -38,6 +38,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio
 
+      - name: Set up Go for LP tools
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Install lpunpack
+        run: |
+          set -euo pipefail
+          go install github.com/soe1hom-arch/lpunpack@v1.0.7
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          "$(go env GOPATH)/bin/lpunpack" --help || true
+
       - name: Install MagiskBoot
         run: |
           set -euo pipefail
@@ -110,14 +122,22 @@ jobs:
           done
           if [ -f firmware/super.img ]; then
             mkdir -p analysis/super
+            super_input=firmware/super.img
+            sparse_magic="$(od -An -tx1 -N4 "$super_input" | tr -d ' \\n')"
+            if [ "$sparse_magic" = "3aff26ed" ]; then
+              echo "Converting sparse super.img to raw before LP extraction"
+              simg2img "$super_input" firmware/super_raw.img
+              super_input=firmware/super_raw.img
+            fi
             if command -v lpunpack >/dev/null 2>&1; then
-              lpunpack firmware/super.img analysis/super || echo "::warning::lpunpack could not unpack super.img"
+              lpunpack "$super_input" analysis/super
             else
-              echo "::warning::lpunpack unavailable; super.img retained without extraction"
+              echo "::error::lpunpack is required but was not installed"; exit 1
             fi
             for image in analysis/super/*.img; do
               [ -f "$image" ] || continue
               name="$(basename "$image" .img)"
+              name="${name%_a}"
               case "$name" in vendor|odm|system|system_ext|product|vendor_dlkm|system_dlkm|odm_dlkm)
                 mkdir -p "analysis/$name"
                 [ -n "$(find "analysis/$name" -mindepth 1 -print -quit 2>/dev/null)" ] && continue
@@ -438,6 +458,11 @@ jobs:
           summary.write_text("\n".join(report))
           print(f"Report written. Findings: {len(findings)}")
           PY
+
+      - name: Make analysis files readable for artifact upload
+        if: always()
+        run: |
+          sudo chmod -R a+rX reports firmware analysis 2>/dev/null || true
 
       - name: Upload WLAN gap report
         if: always()
