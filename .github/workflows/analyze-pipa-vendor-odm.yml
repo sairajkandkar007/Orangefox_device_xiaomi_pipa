@@ -1,0 +1,259 @@
+name: Analyze Pipa vendor and ODM firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Firmware release tag (leave blank to use the latest release)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pipa-vendor-odm-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout OrangeFox device tree
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install image analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y e2fsprogs android-sdk-libsparse-utils file python3
+
+      - name: Resolve firmware release and download images
+        id: firmware
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          REPO="sairajkandkar007/firmware_device_xiaomi_pipa"
+          if [ -n "$REQUESTED_TAG" ]; then
+            API="https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_TAG"
+          else
+            API="https://api.github.com/repos/$REPO/releases/latest"
+          fi
+
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$API" -o release.json
+
+          TAG="$(jq -r '.tag_name // empty' release.json)"
+          NAME="$(jq -r '.name // .tag_name // "Pipa firmware"' release.json)"
+          if [ -z "$TAG" ]; then
+            echo "::error::No usable firmware release was returned."
+            exit 1
+          fi
+
+          mkdir -p firmware
+          for IMAGE in vendor_a.img odm_a.img; do
+            URL="$(jq -r --arg n "$IMAGE" '.assets[] | select(.name == $n) | .browser_download_url' release.json | head -n1)"
+            EXPECTED="$(jq -r --arg n "$IMAGE" '.assets[] | select(.name == $n) | .digest // empty' release.json | head -n1)"
+            if [ -z "$URL" ] || [ "$URL" = "null" ]; then
+              echo "::error::Release $TAG does not contain $IMAGE"
+              exit 1
+            fi
+            echo "Downloading $IMAGE from $TAG"
+            curl --fail --location --retry 5 --retry-all-errors --progress-bar "$URL" -o "firmware/$IMAGE"
+            ACTUAL="sha256:$(sha256sum "firmware/$IMAGE" | awk '{print $1}')"
+            if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "$ACTUAL" ]; then
+              echo "::error::SHA-256 mismatch for $IMAGE (expected $EXPECTED, got $ACTUAL)"
+              exit 1
+            fi
+            echo "$IMAGE $ACTUAL" >> firmware/SHA256SUMS.txt
+          done
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare and mount filesystem images
+        run: |
+          set -euo pipefail
+          mkdir -p analysis/vendor analysis/odm
+          for PART in vendor odm; do
+            IMAGE="firmware/${PART}_a.img"
+            MAGIC="$(od -An -tx1 -N4 "$IMAGE" | tr -d ' \n')"
+            if [ "$MAGIC" = "3aff26ed" ]; then
+              echo "$PART image is Android sparse; converting."
+              simg2img "$IMAGE" "firmware/${PART}_raw.img"
+              IMAGE="firmware/${PART}_raw.img"
+            fi
+            echo "$IMAGE" > "analysis/${PART}.image"
+            sudo mount -o loop,ro,noload "$IMAGE" "analysis/$PART"
+            echo "$PART mounted from $IMAGE"
+          done
+
+      - name: Generate detailed Markdown report
+        env:
+          RELEASE_TAG: ${{ steps.firmware.outputs.tag }}
+          RELEASE_NAME: ${{ steps.firmware.outputs.name }}
+          RELEASE_URL: ${{ steps.firmware.outputs.url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, json, hashlib, subprocess
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          roots = {"vendor": Path("analysis/vendor"), "odm": Path("analysis/odm")}
+          out = []
+          def add(s=""): out.append(str(s))
+          def rel(p, root): return "/" + str(p.relative_to(root))
+          def files(root):
+              return sorted(p for p in root.rglob("*") if p.is_file() or p.is_symlink())
+
+          add("# Xiaomi Pad 6 (Pipa) — Vendor and ODM Firmware Analysis")
+          add()
+          add(f"- **Firmware:** {os.environ['RELEASE_NAME']}")
+          add(f"- **Release tag:** `{os.environ['RELEASE_TAG']}`")
+          add(f"- **Release:** {os.environ['RELEASE_URL']}")
+          add(f"- **Generated (UTC):** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
+          add("- **Scope:** read-only inspection of the release's standalone `vendor_a.img` and `odm_a.img`.")
+          add("- **Note:** this report is generated from the mounted images; it does not modify or commit firmware binaries.")
+          add()
+          sums = Path("firmware/SHA256SUMS.txt").read_text().strip().splitlines()
+          add("## Image integrity")
+          add("| Image | Size | SHA-256 |")
+          add("|---|---:|---|")
+          for line in sums:
+              name, digest = line.split()
+              p = Path("firmware") / name
+              add(f"| `{name}` | {p.stat().st_size:,} bytes | `{digest.removeprefix('sha256:')}` |")
+          add()
+
+          all_paths = {}
+          for part, root in roots.items():
+              fs = files(root)
+              all_paths[part] = fs
+              add(f"## {part.upper()} partition")
+              add(f"- Files and symlinks: **{len(fs):,}**")
+              ext = {}
+              for p in fs:
+                  ext[p.suffix.lower() or "[no extension]"] = ext.get(p.suffix.lower() or "[no extension]", 0) + 1
+              add("- Common file extensions: " + ", ".join(f"`{k}` ({v})" for k,v in sorted(ext.items(), key=lambda x:-x[1])[:18]))
+              add()
+
+          patterns = {
+            "Wi-Fi / WLAN / supplicant": re.compile(r"wifi|wlan|wpa_supplicant|hostapd|cnss|icnss|qca|ath[0-9]|cfg80211|mac80211", re.I),
+            "Bluetooth": re.compile(r"bluetooth|bt_vendor|bt_firmware|btconfig|btsnoop", re.I),
+            "Kernel modules": re.compile(r"\.ko(?:\.|$)", re.I),
+            "Firmware assets": re.compile(r"(^|/)(firmware|wlan|cnss|bt|bluetooth)(/|_|\.)", re.I),
+            "Init / service configuration": re.compile(r"(^|/)(init[^/]*\.rc|[^/]+\.rc)$", re.I),
+            "VINTF / HAL manifests": re.compile(r"(manifest|compatibility_matrix).*\.xml$", re.I),
+          }
+          for title, pat in patterns.items():
+              add(f"## {title}")
+              found = []
+              for part, fs in all_paths.items():
+                  root = roots[part]
+                  found.extend((part, rel(p, root)) for p in fs if pat.search(rel(p, root)))
+              if found:
+                  for part, path in found[:1200]:
+                      add(f"- `{part}{path}`")
+                  if len(found) > 1200: add(f"- … {len(found)-1200} additional matches omitted.")
+              else:
+                  add("- No matching paths found.")
+              add()
+
+          add("## Wi-Fi configuration and init references")
+          cfg_pat = re.compile(r"(wifi|wlan|wpa|hostapd|cnss|icnss|qca)", re.I)
+          candidates = []
+          for part, fs in all_paths.items():
+              root = roots[part]
+              for p in fs:
+                  if p.is_file() and (p.suffix.lower() in {".ini",".conf",".rc",".xml",".prop",".mk",".txt"} or p.name.startswith("init")):
+                      if cfg_pat.search(str(p)) or p.name in {"init.rc","ueventd.rc"}:
+                          candidates.append((part,p))
+          if not candidates:
+              add("- No obvious WLAN-specific text configuration files found.")
+          else:
+              for part,p in candidates[:80]:
+                  try:
+                      data = p.read_text(errors="replace")
+                  except Exception:
+                      continue
+                  lines = [x for x in data.splitlines() if cfg_pat.search(x)]
+                  if lines:
+                      add(f"### `{part}{rel(p, roots[part])}`")
+                      add("```text")
+                      add("\n".join(lines[:100]))
+                      if len(lines)>100: add(f"... {len(lines)-100} additional matching lines omitted")
+                      add("```")
+          add()
+
+          add("## Kernel module inventory")
+          modules = []
+          for part, fs in all_paths.items():
+              root=roots[part]
+              modules += [(part,rel(p,root)) for p in fs if p.name.endswith(".ko") or ".ko." in p.name]
+          if modules:
+              for part,path in modules: add(f"- `{part}{path}`")
+          else: add("- No kernel modules found in these two partitions. Modules may reside in vendor_dlkm/system_dlkm or elsewhere.")
+          add()
+
+          add("## Shared-library and executable candidates")
+          libs=[]
+          for part,fs in all_paths.items():
+              root=roots[part]
+              libs += [(part,rel(p,root)) for p in fs if p.suffix.lower() in {".so",".bin"} and (cfg_pat.search(str(p)) or "/hw/" in str(p))]
+          if libs:
+              for part,path in libs[:1000]: add(f"- `{part}{path}`")
+          else: add("- No WLAN-named shared libraries or binary candidates found by filename.")
+          add()
+
+          add("## Partition filesystem and mount details")
+          for part in roots:
+              image=Path(f"analysis/{part}.image").read_text().strip()
+              info=subprocess.run(["file",image],capture_output=True,text=True).stdout.strip()
+              add(f"- **{part}:** `{info}`")
+          add()
+          add("## Relevance to OrangeFox WLAN bring-up")
+          add("Use the WLAN paths, module names, firmware filenames, init triggers, HAL/service binaries, and configuration excerpts above to compare against the recovery kernel and OrangeFox ramdisk. A file's presence in vendor/ODM does not prove it can run in recovery.")
+          add()
+          add("### Compatibility checks still required")
+          add("- Match each WLAN kernel module to the exact Pipa recovery kernel ABI and dependencies.")
+          add("- Confirm the WLAN chipset/driver family and firmware filenames; do not transplant another device's chipset-specific stack.")
+          add("- Check ELF architecture, linker dependencies, vendor interface versions, SELinux labels/domains, service users/groups, and init property triggers.")
+          add("- Determine whether required modules and firmware are instead in `vendor_dlkm`, `system_dlkm`, `odm_dlkm`, or boot/vendor_boot ramdisks.")
+          add("- Validate the resulting recovery build and test Wi-Fi on-device; static inventory alone cannot establish functional support.")
+          add()
+          add("## Analysis limitations")
+          add("- Only `vendor_a.img` and `odm_a.img` are inspected. This is not a complete analysis of `super`, `vendor_boot`, `boot`, `system`, or DLKM partitions.")
+          add("- This report inventories paths and selected text configuration references. It does not execute vendor binaries or load kernel modules.")
+          add()
+          Path("PIPA_VENDOR_ODM_ANALYSIS.md").write_text("\n".join(out) + "\n")
+          PY
+
+      - name: Commit analysis report to OrangeFox repository
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p docs
+          cp PIPA_VENDOR_ODM_ANALYSIS.md docs/PIPA_VENDOR_ODM_ANALYSIS.md
+          git add docs/PIPA_VENDOR_ODM_ANALYSIS.md
+          if git diff --cached --quiet; then
+            echo "Report is unchanged; no commit needed."
+          else
+            git commit -m "docs: add Pipa vendor and ODM firmware analysis"
+            git push origin HEAD:main
+          fi
+
+      - name: Unmount firmware images
+        if: always()
+        run: |
+          sudo umount analysis/odm 2>/dev/null || true
+          sudo umount analysis/vendor 2>/dev/null || true
