@@ -144,11 +144,11 @@ jobs:
 
           # Copy the Pipa vendor WLAN daemons/supplicant when present.
           for binary in cnss-daemon rmt_storage; do
-            if [ -f "$VENDOR/bin/$binary" ]; then
-              install -m 0755 "$VENDOR/bin/$binary" "$DEST/bin/$binary"
-            else
-              echo "::warning::Pipa vendor binary not found: vendor/bin/$binary"
+            if [ ! -f "$VENDOR/bin/$binary" ]; then
+              echo "::error::Required Pipa WLAN support binary is missing: vendor/bin/$binary"
+              exit 1
             fi
+            install -m 0755 "$VENDOR/bin/$binary" "$DEST/bin/$binary"
           done
           if [ -f "$VENDOR/bin/hw/wpa_supplicant" ]; then
             install -m 0755 "$VENDOR/bin/hw/wpa_supplicant" "$DEST/bin/hw/wpa_supplicant"
