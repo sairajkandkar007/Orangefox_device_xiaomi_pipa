@@ -2,12 +2,13 @@
 # Copyright (C) 2026 Pipa OrangeFox contributors
 # SPDX-License-Identifier: Apache-2.0
 
-# Pipa uses the QCA6390/QCA6490 CLD3 vendor driver candidates.
-# This loader intentionally uses only Pipa firmware and module files.
+# Pipa's vendor configuration provides the QCA6390 CLD3 profile and module.
+# Do not try the QCA6490 alternative automatically: a second chipset driver
+# must not be loaded merely because the first module failed.
 LOG=/tmp/pipa-wlan-loader.log
 MODDIR=/vendor/lib/modules
-FWROOT=/vendor/firmware
 DEPFILE="$MODDIR/modules.dep"
+MODULE=qca_cld3_qca6390.ko
 
 log() {
     echo "[PIPA-WLAN] $*" >> "$LOG"
@@ -19,56 +20,57 @@ module_loaded() {
     grep -q "^$name " /proc/modules 2>/dev/null
 }
 
-# Recursively load dependencies when modules.dep is available in the vendor dump.
 load_module() {
     rel="$1"
-    base=$(basename "$rel")
-    path=$(find "$MODDIR" -type f -name "$base" 2>/dev/null | head -n 1)
-    [ -n "$path" ] && [ -f "$path" ] || return 1
-    name=$(basename "${base%.ko}" | tr '-' '_')
+    path="$MODDIR/$rel"
+    [ -f "$path" ] || {
+        log "Missing module: $path"
+        return 1
+    }
+
+    name=$(basename "${rel%.ko}" | tr '-' '_')
     module_loaded "$name" && return 0
 
-    # Mark before descending so an unexpected dependency cycle cannot recurse forever.
     state="/tmp/pipa-wlan-module-$name"
-    [ ! -e "$state" ] || return 1
+    [ ! -e "$state" ] || {
+        log "Dependency cycle detected at $rel"
+        return 1
+    }
     : > "$state"
 
+    # Follow the vendor modules.dep file if the firmware image provides one.
+    # The current Pipa vendor dump may omit it; in that case insmod reports
+    # unresolved symbols explicitly in this log and dmesg.
     if [ -f "$DEPFILE" ]; then
-        line=$(grep -m1 -E "(^|/)$base:" "$DEPFILE" || true)
+        line=$(grep -m1 -E "^$rel:" "$DEPFILE" || true)
         deps=${line#*:}
         for dep in $deps; do
-            depbase=$(basename "$dep")
-            load_module "$depbase" || log "Dependency load failed: $depbase"
+            dep=${dep#"$MODDIR/"}
+            if ! load_module "$dep"; then
+                log "Required dependency failed: $dep"
+                return 1
+            fi
         done
     fi
 
     if insmod "$path" >> "$LOG" 2>&1; then
-        log "Loaded $base"
+        log "Loaded $rel"
         return 0
     fi
-    log "Could not load $base (check vermagic, symbols and dmesg)"
+
+    log "Failed to load $rel; inspect this log and dmesg for vermagic/symbol errors"
     return 1
 }
 
 : > "$LOG"
-log "Starting Pipa WLAN bring-up"
-mkdir -p "$FWROOT"
+log "Starting Pipa QCA6390 WLAN setup"
 
-# Prefer the chipset used by the active Pipa vendor configuration.
-# QCA6490 is retained as a fallback candidate, never loaded alongside QCA6390.
-if [ -d "$MODDIR" ]; then
-    if load_module qca_cld3_qca6390.ko; then
-        setprop twrp.wlan.chipset qca6390
-        setprop twrp.wlan.drivers.loaded true
-        exit 0
-    fi
-    if load_module qca_cld3_qca6490.ko; then
-        setprop twrp.wlan.chipset qca6490
-        setprop twrp.wlan.drivers.loaded true
-        exit 0
-    fi
+if load_module "$MODULE"; then
+    setprop twrp.wlan.chipset qca6390
+    setprop twrp.wlan.drivers.loaded true
+    exit 0
 fi
 
-log "No Pipa WLAN module could be loaded; inspect $LOG and dmesg"
 setprop twrp.wlan.drivers.loaded false
+log "WLAN driver setup failed; Wi-Fi will remain unavailable"
 exit 0
