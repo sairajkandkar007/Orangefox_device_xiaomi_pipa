@@ -109,6 +109,38 @@ jobs:
             fi
           done
 
+      - name: Stage Pipa WLAN modules and firmware for OrangeFox
+        run: |
+          set -euo pipefail
+          VENDOR=analysis/vendor/vendor
+          DEST=recovery/root/vendor
+          mkdir -p "$DEST/lib/modules" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390"
+
+          # Keep both Pipa-provided candidates. Do not load either automatically:
+          # this inventory cannot prove the active chipset or kernel ABI match.
+          for module in qca_cld3_qca6390.ko qca_cld3_qca6490.ko; do
+            src="$VENDOR/lib/modules/$module"
+            if [ ! -f "$src" ]; then echo "::error::Missing Pipa WLAN module: $src"; exit 1; fi
+            install -m 0644 "$src" "$DEST/lib/modules/$module"
+          done
+
+          # Stage Pipa-specific firmware/configuration, not Amethyst/QCA6750 assets.
+          for chipset in qca6390 qca6490; do
+            src="$VENDOR/firmware/wlan/qca_cld/$chipset"
+            [ ! -f "$src/WCNSS_qcom_cfg.ini" ] || install -m 0644 "$src/WCNSS_qcom_cfg.ini" "$DEST/firmware/wlan/qca_cld/$chipset/"
+            [ ! -f "$src/wlan_mac.bin" ] || install -m 0644 "$src/wlan_mac.bin" "$DEST/firmware/wlan/qca_cld/$chipset/"
+          done
+          [ ! -f "$VENDOR/etc/wifi/qca6390/WCNSS_qcom_cfg.ini" ] || install -m 0644 "$VENDOR/etc/wifi/qca6390/WCNSS_qcom_cfg.ini" "$DEST/etc/wifi/qca6390/"
+          [ ! -f "$VENDOR/etc/wifi/wpa_supplicant.conf" ] || install -m 0644 "$VENDOR/etc/wifi/wpa_supplicant.conf" "$DEST/etc/wifi/"
+          [ ! -f "$VENDOR/etc/wifi/wpa_supplicant_overlay.conf" ] || install -m 0644 "$VENDOR/etc/wifi/wpa_supplicant_overlay.conf" "$DEST/etc/wifi/"
+          if [ -f "$VENDOR/etc/hostapd/hostapd_default.conf" ]; then
+            mkdir -p "$DEST/etc/hostapd"
+            install -m 0644 "$VENDOR/etc/hostapd/hostapd_default.conf" "$DEST/etc/hostapd/"
+          fi
+
+          mkdir -p docs
+          { echo "# Pipa WLAN files staged by the vendor/ODM analysis workflow"; find "$DEST/lib/modules" "$DEST/firmware/wlan" "$DEST/etc/wifi" "$DEST/etc/hostapd" -type f -print 2>/dev/null | sort; } > docs/PIPA_WLAN_STAGED_FILES.txt
+
       - name: Generate detailed Markdown report
         env:
           RELEASE_TAG: ${{ steps.firmware.outputs.tag }}
