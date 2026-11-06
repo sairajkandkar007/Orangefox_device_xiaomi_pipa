@@ -1,0 +1,14 @@
+boot.img	134217728 bytes
+cust.img	98234600 bytes
+dtbo.img	33554432 bytes
+dummy.img	8192 bytes
+metadata.img	49228 bytes
+misc.img	8192 bytes
+persist.img	67108864 bytes
+rescue.img	41036 bytes
+super.img	5907932584 bytes
+super_raw.img	9126805504 bytes
+userdata.img	137503104 bytes
+vbmeta.img	8192 bytes
+vbmeta_system.img	4096 bytes
+vendor_boot.img	100663296 bytes

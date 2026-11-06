@@ -1,0 +1,1 @@
+Official Xiaomi CDN URL: https://bkt-sgp-miui-ota-update-alisgp.oss-ap-southeast-1.aliyuncs.com/OS2.0.14.0.UMZINXM/pipa_in_global_images_OS2.0.14.0.UMZINXM_20260414.0000.00_14.0_in_2a8218ddf5.tgz\n
