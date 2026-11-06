@@ -68,16 +68,16 @@ jobs:
           printf "# Pipa WLAN gap analysis\\n\\nOfficial Xiaomi ROM download has not completed. See workflow logs.\\n" > reports/PIPA_WLAN_GAP_ANALYSIS.md
 
           # Official India fastboot package for Xiaomi Pad 6 (pipa).
-          # The file is served by Xiaomi's CDN, not a GitHub release or mirror.
+          # Use the Xiaomi OTA Singapore OSS endpoint supplied for this ROM package.
           ROM_VERSION="OS2.0.14.0.UMZINXM"
           ROM_FILE="pipa_in_global_images_OS2.0.14.0.UMZINXM_20260414.0000.00_14.0_in_2a8218ddf5.tgz"
           ROM_MD5="2a8218ddf55d55edba81a0075d082bea"
-          ROM_URL="https://bigota.d.miui.com/${ROM_VERSION}/${ROM_FILE}"
+          ROM_URL="https://bkt-sgp-miui-ota-update-alisgp.oss-ap-southeast-1.aliyuncs.com/${ROM_VERSION}/${ROM_FILE}"
 
           echo "tag=${ROM_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_url=https://bigota.d.miui.com/${ROM_VERSION}/${ROM_FILE}" >> "$GITHUB_OUTPUT"
+          echo "release_url=${ROM_URL}" >> "$GITHUB_OUTPUT"
           echo "Downloading official Xiaomi CDN package: ${ROM_FILE}"
-          aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-connection-per-server=16 --split=16 --min-split-size=8M --max-concurrent-downloads=1 --file-allocation=none --retry-wait=5 --max-tries=8 --timeout=30 --connect-timeout=20 --summary-interval=15 --console-log-level=notice --dir=firmware --out="${ROM_FILE}" "${ROM_URL}"
+          aria2c --max-connection-per-server=16 --split=16 --min-split-size=1M --file-allocation=none --continue=true --max-tries=10 --retry-wait=5 --connect-timeout=30 --timeout=120 --summary-interval=10 --check-integrity=true --console-log-level=notice --dir=firmware --out="${ROM_FILE}" "${ROM_URL}"
 
           echo "${ROM_MD5}  ${ROM_FILE}" | (cd firmware && md5sum -c -)
           printf '%s\\n' "${ROM_FILE}" > firmware/release-assets.txt
