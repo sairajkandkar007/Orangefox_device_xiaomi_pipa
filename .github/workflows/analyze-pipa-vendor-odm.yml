@@ -116,11 +116,13 @@ jobs:
           DEST=recovery/root/vendor
           mkdir -p "$DEST/lib/modules" "$DEST/bin" "$DEST/bin/hw" "$DEST/lib64" "$DEST/lib" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390" "$DEST/etc/hostapd"
 
-          # Stage Pipa's own QCA CLD3 candidates and any vendor module dependency metadata.
+          # Stage the complete Pipa vendor module directory so modules.dep dependencies can resolve.
+          for src in "$VENDOR"/lib/modules/*.ko; do
+            [ -f "$src" ] || continue
+            install -m 0644 "$src" "$DEST/lib/modules/$(basename "$src")"
+          done
           for module in qca_cld3_qca6390.ko qca_cld3_qca6490.ko; do
-            src="$VENDOR/lib/modules/$module"
-            if [ ! -f "$src" ]; then echo "::error::Missing Pipa WLAN module: $src"; exit 1; fi
-            install -m 0644 "$src" "$DEST/lib/modules/$module"
+            [ -f "$DEST/lib/modules/$module" ] || { echo "::error::Missing Pipa WLAN module: $module"; exit 1; }
           done
           for metadata in modules.dep modules.alias modules.softdep modules.order modules.load; do
             [ ! -f "$VENDOR/lib/modules/$metadata" ] || install -m 0644 "$VENDOR/lib/modules/$metadata" "$DEST/lib/modules/$metadata"
