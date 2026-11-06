@@ -1,0 +1,9 @@
+# Copyright (C) 2026 Pipa OrangeFox contributors
+# SPDX-License-Identifier: Apache-2.0
+
+service vendor.cnss-daemon /vendor/bin/cnss-daemon -n -l --max_file_count 3 --max_file_size 20
+    user system
+    group system inet net_admin wifi
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw:/system/lib64:/vendor/odm/lib64:/bin
+    seclabel u:r:recovery:s0
+    disabled
