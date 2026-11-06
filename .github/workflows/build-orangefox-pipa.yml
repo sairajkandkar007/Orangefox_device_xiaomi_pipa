@@ -118,7 +118,7 @@ jobs:
           cd "$GITHUB_WORKSPACE/OrangeFox/fox_$FOX_BRANCH"
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          lunch "fox_${DEVICE_NAME}-eng"
+          lunch "fox_${DEVICE_NAME}-ap2a-eng"
           if [[ "${{ inputs.clean_build }}" == "true" ]]; then
             mka installclean
           fi
