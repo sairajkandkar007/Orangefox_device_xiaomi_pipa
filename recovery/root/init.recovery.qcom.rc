@@ -46,7 +46,15 @@ on init
 on boot
     start health-hal-2-1
     start batterysecret
+    start pipa-wlan-loader
     setprop sys.usb.config adb
+
+service pipa-wlan-loader /system/bin/sh /system/bin/load-pipa-wlan.sh
+    class late_start
+    user root
+    group root
+    oneshot
+    disabled
 
 on property:vendor.sys.listeners.registered=true
     start keymaster-4-1
