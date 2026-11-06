@@ -31,7 +31,7 @@ done
 for part in $PARTITIONS; do
     src="$BY_NAME/$part"
     [ -e "$src" ] || { log "Missing partition $part; refusing to start"; exit 1; }
-    loop=$(losetup --find --show --read-only "$src" 2>>/tmp/recovery.log || true)
+    loop=$(losetup -frs "$src" 2>>/tmp/recovery.log || true)
     [ -n "$loop" ] || { log "Could not create read-only loop for $part"; exit 1; }
     [ "$(cat "/sys/class/block/$(basename "$loop")/ro" 2>/dev/null || echo 0)" = "1" ] || {
         log "$part loop device is not read-only"
