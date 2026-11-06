@@ -1,0 +1,48 @@
+name: Import Nabu utility binaries
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-nabu-binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Pipa device tree
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone Nabu source at pinned revision
+        run: |
+          git clone https://github.com/ArKT-7/twrp_device_xiaomi_nabu.git "$RUNNER_TEMP/nabu"
+          cd "$RUNNER_TEMP/nabu"
+          git checkout 9bf1fd3b182d9884f7f9309c40e8376cdc8e37d4
+
+      - name: Copy selected binaries
+        run: |
+          mkdir -p recovery/root/system/bin
+          for tool in parted wimlib sgdisk ntfsfix ntfsresize; do
+            src="$RUNNER_TEMP/nabu/recovery/root/system/bin/$tool"
+            test -f "$src"
+            install -m 0755 "$src" "recovery/root/system/bin/$tool"
+          done
+
+      - name: Verify imported files
+        run: |
+          file recovery/root/system/bin/{parted,wimlib,sgdisk,ntfsfix,ntfsresize}
+          sha256sum recovery/root/system/bin/{parted,wimlib,sgdisk,ntfsfix,ntfsresize}
+
+      - name: Commit binaries
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add recovery/root/system/bin/parted recovery/root/system/bin/wimlib recovery/root/system/bin/sgdisk recovery/root/system/bin/ntfsfix recovery/root/system/bin/ntfsresize
+          if git diff --cached --quiet; then
+            echo "Selected Nabu binaries are already up to date."
+            exit 0
+          fi
+          git commit -m "Import partition and filesystem tools from Nabu"
+          git push origin HEAD:main
