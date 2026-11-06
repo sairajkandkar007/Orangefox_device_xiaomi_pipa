@@ -236,7 +236,8 @@ jobs:
           set -euo pipefail
           for part in boot vendor_boot; do
             image="firmware/$part.img"
-            [ -f "$image" ] || continue            out="analysis/$part/unpacked"
+            [ -f "$image" ] || continue
+            out="analysis/$part/unpacked"
             mkdir -p "$out"
             file "$image" | tee "analysis/$part/image-type.txt"
             if (cd "$out" && "$GITHUB_WORKSPACE/tools/magiskboot" unpack "$GITHUB_WORKSPACE/$image") >"analysis/$part/magiskboot.log" 2>&1; then
