@@ -114,7 +114,7 @@ jobs:
           set -euo pipefail
           VENDOR=analysis/vendor
           DEST=recovery/root/vendor
-          mkdir -p "$DEST/lib/modules" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390"
+          mkdir -p "$DEST/lib/modules" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390" "$DEST/etc/hostapd"
 
           # Keep both Pipa-provided candidates. Do not load either automatically:
           # this inventory cannot prove the active chipset or kernel ABI match.
