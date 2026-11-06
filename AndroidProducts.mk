@@ -1,14 +1,10 @@
-#
-# Copyright (C) 2023 The Android Open Source Project
-# Copyright (C) 2023 SebaUbuntu's TWRP device tree generator
-#
-# SPDX-License-Identifier: Apache-2.0
-#
-
+# OrangeFox 14.1 product for Xiaomi Pad 6 (Pipa)
 PRODUCT_MAKEFILES := \
+    $(LOCAL_DIR)/fox_pipa.mk \
     $(LOCAL_DIR)/twrp_pipa.mk
 
 COMMON_LUNCH_CHOICES := \
-    twrp_pipa-user \
-    twrp_pipa-userdebug \
-    twrp_pipa-eng
+    fox_pipa-user \
+    fox_pipa-userdebug \
+    fox_pipa-eng \
+    twrp_pipa-userdebug
