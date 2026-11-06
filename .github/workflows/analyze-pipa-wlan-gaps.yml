@@ -51,8 +51,10 @@ jobs:
           else
             API="https://api.github.com/repos/$REPO/releases/latest"
           fi
-          curl --fail --silent --show-error \
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
             -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
             "$API" -o release.json
           TAG="$(jq -r '.tag_name // empty' release.json)"
           [ -n "$TAG" ] || { echo "::error::Could not resolve a firmware release"; exit 1; }
