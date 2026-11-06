@@ -1,0 +1,9 @@
+# Copyright (C) 2026 Pipa OrangeFox contributors
+# SPDX-License-Identifier: Apache-2.0
+
+service vendor.pd-mapper /vendor/bin/pd-mapper
+    user system
+    group system wifi
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw:/system/lib64:/vendor/odm/lib64:/bin
+    seclabel u:r:recovery:s0
+    disabled
