@@ -64,7 +64,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "release_url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
           # Vendor and ODM are required; other partitions are optional release assets.
-          for image in vendor_a.img odm_a.img boot.img vendor_boot.img system_a.img system_ext_a.img product_a.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img; do
+          for image in vendor_a.img odm_a.img boot.img vendor_boot.img system_a.img system_ext_a.img product_a.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img vendor_dlkm.img system_dlkm.img odm_dlkm.img; do
             url="$(jq -r --arg n "$image" '.assets[] | select(.name == $n) | .browser_download_url' release.json | head -n1)"
             if [ -n "$url" ] && [ "$url" != "null" ]; then
               echo "Downloading $image"
@@ -82,6 +82,7 @@ jobs:
           set -euo pipefail
           for part in vendor odm system system_ext product vendor_dlkm system_dlkm odm_dlkm; do
             image="firmware/${part}_a.img"
+            [ -f "$image" ] || image="firmware/${part}.img"
             [ -f "$image" ] || continue
             mkdir -p "analysis/$part"
             magic="$(od -An -tx1 -N4 "$image" | tr -d ' \\n')"
@@ -128,7 +129,7 @@ jobs:
           vendor = Path("analysis/vendor")
           odm = Path("analysis/odm")
           partition_names = ["system", "system_ext", "product", "vendor_dlkm", "system_dlkm", "odm_dlkm"]
-          other_parts = {name: Path("analysis") / name for name in partition_names if (Path("analysis") / name).is_dir()}
+          other_parts = {name: Path("analysis") / name for name in partition_names if (Path("firmware") / f"{name}_a.img").exists() or (Path("firmware") / f"{name}.img").exists()}
           all_fs_roots = [vendor, odm, *other_parts.values()]
           recovery = Path("recovery/root")
           report = []
@@ -290,7 +291,7 @@ jobs:
           add()
           add("| Partition | WLAN-related files found |")
           add("|---|---|")
-          wlan_pattern = re.compile(r"(wlan|wifi|qca|cnss|icnss|supplicant|hostapd|\\.ko$)", re.I)
+          wlan_pattern = re.compile(r"(wlan|wifi|qca|cnss|icnss|supplicant|hostapd|\.ko$)", re.I)
           for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items()]:
               matches = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and wlan_pattern.search(p.name)]
               add(f"| {part_name} | " + (", ".join(matches[:100]) if matches else "No filename matches") + " |")
