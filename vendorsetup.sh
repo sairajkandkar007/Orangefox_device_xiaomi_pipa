@@ -14,6 +14,7 @@ export FOX_ASH_IS_BASH=1
 export FOX_ENABLE_APP_MANAGER=1
 export FOX_USE_XZ_UTILS=1
 export OF_ENABLE_LPTOOLS=1
+export OF_ENABLE_WLAN=1
 export FOX_RECOVERY_SYSTEM_PARTITION="/dev/block/mapper/system"
 export FOX_RECOVERY_VENDOR_PARTITION="/dev/block/mapper/vendor"
 export OF_USE_LZMA_COMPRESSION=1
