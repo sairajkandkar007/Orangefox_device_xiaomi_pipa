@@ -60,58 +60,48 @@ jobs:
           chmod 0755 tools/magiskboot
           file tools/magiskboot
           ./tools/magiskboot 2>&1 | head -n 20 || true
-      - name: Resolve Pipa firmware release
+      - name: Download official Xiaomi Pipa fastboot ROM at high speed
         id: firmware
-        env:
-          REQUESTED_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           mkdir -p reports firmware analysis/vendor analysis/odm analysis/system analysis/system_ext analysis/product analysis/vendor_dlkm analysis/system_dlkm analysis/odm_dlkm analysis/boot analysis/vendor_boot
-          printf "# Pipa WLAN gap analysis\n\nFirmware release resolution has not completed. See the workflow log for details.\n" > reports/PIPA_WLAN_GAP_ANALYSIS.md
-          REPO="sairajkandkar007/firmware_device_xiaomi_pipa"
-          if [ -n "$REQUESTED_TAG" ]; then
-            API="https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_TAG"
-          else
-            API="https://api.github.com/repos/$REPO/releases/latest"
-          fi
-          # The firmware repository is public. Use the unauthenticated public
-          # release endpoint: GITHUB_TOKEN is scoped to this repository and can
-          # return 403 when used against a different repository.
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$API" -o release.json
-          TAG="$(jq -r '.tag_name // empty' release.json)"
-          [ -n "$TAG" ] || { echo "::error::Could not resolve a firmware release"; exit 1; }
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "release_url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
-          # Download the complete published fastboot ROM asset set, not only
-          # the handful of partitions used by the original WLAN audit.
-          # aria2 uses parallel connections and parallel asset downloads.
-          : > firmware/downloads.txt
-          while IFS= read -r asset; do
-            name="$(jq -r '.name' <<< "$asset")"
-            url="$(jq -r '.browser_download_url' <<< "$asset")"
-            case "$name" in
-              *.img|*.img.part*|SHA256SUMS|ROM-INFO.md|SOURCE_ARCHIVE_SHA256.txt)
-                printf '%s\n out=%s\n' "$url" "$name" >> firmware/downloads.txt
-                ;;
-            esac
-          done < <(jq -c '.assets[]' release.json)
-          [ -s firmware/downloads.txt ] || { echo "::error::No ROM image assets found"; exit 1; }
-          echo "Assets queued: $(grep -c '^https://' firmware/downloads.txt)"
-          aria2c --continue=true --max-connection-per-server=16 --split=16 \
-            --max-concurrent-downloads=8 --min-split-size=8M \
-            --file-allocation=none --retry-wait=5 --max-tries=5 \
-            --summary-interval=30 --console-log-level=notice \
-            --dir=firmware --input-file=firmware/downloads.txt
-          # Verify the release-provided checksums where the manifest is present.
-          if [ -f firmware/SHA256SUMS ]; then
-            (cd firmware && sha256sum -c SHA256SUMS) | tee firmware/checksum-verification.txt
-          else
-            echo "::warning::Release has no SHA256SUMS manifest"
-          fi
-          jq -r '.assets[].name' release.json > firmware/release-assets.txt
+          printf "# Pipa WLAN gap analysis\\n\\nOfficial Xiaomi ROM download has not completed. See workflow logs.\\n" > reports/PIPA_WLAN_GAP_ANALYSIS.md
+
+          # Official India fastboot package for Xiaomi Pad 6 (pipa).
+          # The file is served by Xiaomi's CDN, not a GitHub release or mirror.
+          ROM_VERSION="OS2.0.14.0.UMZINXM"
+          ROM_FILE="pipa_in_global_images_OS2.0.14.0.UMZINXM_20260414.0000.00_14.0_in_2a8218ddf5.tgz"
+          ROM_MD5="2a8218ddf55d55edba81a0075d082bea"
+          ROM_URL="https://bigota.d.miui.com/${ROM_VERSION}/${ROM_FILE}"
+
+          echo "tag=${ROM_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_url=https://bigota.d.miui.com/${ROM_VERSION}/${ROM_FILE}" >> "$GITHUB_OUTPUT"
+          echo "Downloading official Xiaomi CDN package: ${ROM_FILE}"
+          aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false \\
+            --max-connection-per-server=16 --split=16 --min-split-size=8M \\
+            --max-concurrent-downloads=1 --file-allocation=none \\
+            --retry-wait=5 --max-tries=8 --timeout=30 --connect-timeout=20 \\
+            --summary-interval=15 --console-log-level=notice \\
+            --dir=firmware --out="${ROM_FILE}" "${ROM_URL}"
+
+          echo "${ROM_MD5}  ${ROM_FILE}" | (cd firmware && md5sum -c -)
+          printf '%s\\n' "${ROM_FILE}" > firmware/release-assets.txt
+          printf 'Official Xiaomi CDN URL: %s\\n' "${ROM_URL}" > firmware/source.txt
+
+          mkdir -p firmware/xiaomi_fastboot_rom
+          echo "Extracting full fastboot TGZ archive"
+          tar -xzf "firmware/${ROM_FILE}" -C firmware/xiaomi_fastboot_rom
+
+          # Make every image available to the existing partition analyzers.
+          # Keep the original archive tree intact as well.
+          while IFS= read -r -d '' image; do
+            name="$(basename "$image")"
+            [ -e "firmware/$name" ] || cp --reflink=auto "$image" "firmware/$name"
+          done < <(find firmware/xiaomi_fastboot_rom -type f -name '*.img' -print0)
+
+          find firmware/xiaomi_fastboot_rom -type f -name '*.img' -printf '%f\\n' | sort > firmware/rom-image-list.txt
+          echo "Extracted image count: $(wc -l < firmware/rom-image-list.txt)"
+          [ -s firmware/rom-image-list.txt ] || { echo "::error::No partition images found in Xiaomi fastboot archive"; exit 1; }
 
       - name: Reassemble ROM images and unpack every super partition
         run: |
@@ -552,6 +542,9 @@ jobs:
           path: |
             reports/PIPA_WLAN_GAP_ANALYSIS.md
             firmware/release-assets.txt
+            firmware/source.txt
+            firmware/rom-image-list.txt
+            firmware/xiaomi_fastboot_rom/**
             analysis/boot/**
             analysis/vendor_boot/**
             analysis/super/**
