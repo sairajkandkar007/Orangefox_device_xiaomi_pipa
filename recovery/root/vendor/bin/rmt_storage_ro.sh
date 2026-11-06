@@ -7,7 +7,7 @@
 set -eu
 
 BY_NAME=/dev/block/bootdevice/by-name
-SHADOW=/dev/block/bootdevice_ro
+SHADOW=/dev/block/bootdevice_ro/by-name
 LOOP_DIR=/dev/rmt_ro
 PARTITIONS="modemst1 modemst2 fsg fsc"
 
@@ -20,14 +20,17 @@ command -v losetup >/dev/null 2>&1 || { log "losetup unavailable; refusing writa
 
 mkdir -p "$SHADOW" "$LOOP_DIR"
 
-# Mirror the stock by-name entries, substituting only modem NV/EFS partitions.
+# Resolve original links before replacing the by-name directory; this avoids
+# creating symlinks that point back into the directory being bind-mounted.
 for entry in "$BY_NAME"/*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
     name=$(basename "$entry")
     case " $PARTITIONS " in
         *" $name "*) continue ;;
     esac
-    ln -sfn "$entry" "$SHADOW/$name"
+    target=$(realpath "$entry" 2>/dev/null || true)
+    [ -n "$target" ] || { log "Could not resolve original partition link $entry"; exit 1; }
+    ln -sfn "$target" "$SHADOW/$name"
 done
 
 for part in $PARTITIONS; do
@@ -50,7 +53,6 @@ done
 
 mount --bind "$SHADOW" "$BY_NAME" || { log "Could not bind read-only by-name view"; exit 1; }
 
-# Verify the exact four protected names resolve to read-only block devices.
 for part in $PARTITIONS; do
     real=$(realpath "$BY_NAME/$part" 2>/dev/null || true)
     loop_name=$(basename "$real")
