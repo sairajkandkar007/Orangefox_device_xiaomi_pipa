@@ -2,23 +2,25 @@
 # Copyright (C) 2026 Pipa OrangeFox contributors
 # SPDX-License-Identifier: Apache-2.0
 
-# Expose modem NV/EFS partitions to rmt_storage through read-only loop devices.
-# If any mapping cannot be made read-only, abort rather than run the vendor daemon.
+# rmt_storage can write modem NV/EFS. Redirect its by-name view to read-only
+# loop devices. If any partition or read-only mapping is unavailable, abort.
 set -eu
 
 BY_NAME=/dev/block/bootdevice/by-name
-SHADOW=/dev/block/bootdevice_ro/by-name
+SHADOW=/dev/block/bootdevice_ro
 LOOP_DIR=/dev/rmt_ro
 PARTITIONS="modemst1 modemst2 fsg fsc"
 
-log() { echo "E:[PIPA-RMT] $*" >> /tmp/recovery.log; }
+log() {
+    echo "E:[PIPA-RMT] $*" >> /tmp/recovery.log
+}
 
-[ -d "$BY_NAME" ] || { log "Missing $BY_NAME"; exit 1; }
-command -v losetup >/dev/null 2>&1 || { log "losetup is unavailable; refusing writable fallback"; exit 1; }
+[ -d "$BY_NAME" ] || { log "Missing Pipa by-name directory: $BY_NAME"; exit 1; }
+command -v losetup >/dev/null 2>&1 || { log "losetup unavailable; refusing writable fallback"; exit 1; }
 
 mkdir -p "$SHADOW" "$LOOP_DIR"
 
-# Mirror all by-name entries, replacing only the four NV/EFS partitions.
+# Mirror the stock by-name entries, substituting only modem NV/EFS partitions.
 for entry in "$BY_NAME"/*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
     name=$(basename "$entry")
@@ -30,10 +32,16 @@ done
 
 for part in $PARTITIONS; do
     src="$BY_NAME/$part"
-    [ -e "$src" ] || { log "Missing partition $part; refusing to start"; exit 1; }
-    loop=$(losetup -frs "$src" 2>>/tmp/recovery.log || true)
+    [ -e "$src" ] || { log "Missing Pipa partition $part; refusing to start"; exit 1; }
+
+    loop=$(losetup -j "$src" 2>/dev/null | cut -d: -f1 || true)
+    if [ -z "$loop" ]; then
+        loop=$(losetup -frs "$src" 2>>/tmp/recovery.log || true)
+    fi
     [ -n "$loop" ] || { log "Could not create read-only loop for $part"; exit 1; }
-    [ "$(cat "/sys/class/block/$(basename "$loop")/ro" 2>/dev/null || echo 0)" = "1" ] || {
+
+    loop_name=$(basename "$loop")
+    [ "$(cat "/sys/class/block/$loop_name/ro" 2>/dev/null || echo 0)" = "1" ] || {
         log "$part loop device is not read-only"
         exit 1
     }
@@ -41,4 +49,15 @@ for part in $PARTITIONS; do
 done
 
 mount --bind "$SHADOW" "$BY_NAME" || { log "Could not bind read-only by-name view"; exit 1; }
+
+# Verify the exact four protected names resolve to read-only block devices.
+for part in $PARTITIONS; do
+    real=$(realpath "$BY_NAME/$part" 2>/dev/null || true)
+    loop_name=$(basename "$real")
+    [ "$(cat "/sys/class/block/$loop_name/ro" 2>/dev/null || echo 0)" = "1" ] || {
+        log "$part is not backed by a read-only loop device; aborting"
+        exit 1
+    }
+done
+
 exec /vendor/bin/rmt_storage "$@"
