@@ -163,10 +163,8 @@ jobs:
             out="analysis/$part/unpacked"
             mkdir -p "$out"
             file "$image" | tee "analysis/$part/image-type.txt"
-            if ./tools/magiskboot unpack "$image" >"analysis/$part/magiskboot.log" 2>&1; then
+            if (cd "$out" && "$GITHUB_WORKSPACE/tools/magiskboot" unpack "$GITHUB_WORKSPACE/$image") >"analysis/$part/magiskboot.log" 2>&1; then
               echo "MagiskBoot successfully unpacked $part.img"
-              find . -maxdepth 1 -type f \\( -name kernel -o -name ramdisk.cpio -o -name dtb -o -name header -o -name vendor_ramdisk.cpio \\) -print -exec mv -t "$GITHUB_WORKSPACE/$out" {} +
-              # magiskboot writes outputs to the current directory; isolate each image.
             else
               cat "analysis/$part/magiskboot.log"
               echo "::warning::MagiskBoot failed to unpack $part.img"
