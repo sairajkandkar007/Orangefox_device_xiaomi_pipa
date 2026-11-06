@@ -1,0 +1,11 @@
+# Copyright (C) 2026 Pipa OrangeFox contributors
+# SPDX-License-Identifier: Apache-2.0
+
+service wlan_setup /system/bin/sh /system/bin/wlan_setup.sh
+    class late_start
+    user root
+    group root wifi
+    priority -5
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
