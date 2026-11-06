@@ -236,8 +236,7 @@ jobs:
           set -euo pipefail
           for part in boot vendor_boot; do
             image="firmware/$part.img"
-            [ -f "$image" ] || continue
-            out="analysis/$part/unpacked"
+            [ -f "$image" ] || continue            out="analysis/$part/unpacked"
             mkdir -p "$out"
             file "$image" | tee "analysis/$part/image-type.txt"
             if (cd "$out" && "$GITHUB_WORKSPACE/tools/magiskboot" unpack "$GITHUB_WORKSPACE/$image") >"analysis/$part/magiskboot.log" 2>&1; then
@@ -255,6 +254,129 @@ jobs:
               (cd "$out/vendor_ramdisk" && cpio -idm --quiet --no-absolute-filenames < ../vendor_ramdisk.cpio) || echo "::warning::Could not extract $part vendor ramdisk cpio"
             fi
           done
+      - name: Inventory requested WLAN assets in stock ROM
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import fnmatch
+          import hashlib
+          from pathlib import Path
+
+          # Exact files requested from the live Pipa device, plus previously
+          # missing WLAN init files and supplicant interface libraries.
+          names = [
+              "amss20.bin",
+              "bd_j1_b.elf", "bd_j1gl.elf", "bd_j1in.elf", "bd_j1s.elf",
+              "bd_j2s.elf", "bd_j3s.elf", "bd_j3sgl.elf", "bd_j3sin.elf",
+              "bd_j11.elf", "bd_j11_b.elf", "bd_j11gl.elf", "bd_j11in.elf",
+              "bd_k11a.elf", "bd_k11agl.elf", "bd_k11ain.elf",
+              "bd_k81.elf", "bd_k81a.elf", "bd_l3a.elf", "bd_l3agl.elf",
+              "bd_l81a.elf", "bd_m82.elf", "bd_m82gl.elf", "bd_m82in.elf",
+              "bdwlan.elf",
+              *[f"bdwlan.e{x}" for x in [
+                  "01","02","03","04","05","06","07","08","09","10",
+                  "11","12","13","14","15","16","17","18","25",
+                  "0a","0b","0c","0d","0e","0f"
+              ]],
+              "cnss-daemon", "hostapd", "libdl_android.so", "libwifi-hal.so",
+              "m3.bin", "qca_cld3_qca6390.ko", "qca_cld3_qca6490.ko",
+              "regdb.bin", "regdb_j11.bin", "rmt_storage",
+              "vendor.qti.rmt_storage.rc", "WCNSS_qcom_cfg.ini",
+              "wlan_mac.bin", "wpa_supplicant", "wpa_supplicant.conf",
+              "wpa_supplicant_overlay.conf",
+              "android.hardware.wifi.supplicant@1.0.so",
+              "android.hardware.wifi.supplicant@1.1.so",
+              "android.hardware.wifi.supplicant@1.2.so",
+              "android.hardware.wifi.supplicant@1.3.so",
+              "cnss-daemon.rc", "wpa_supplicant.rc", "wlan_setup.rc",
+          ]
+          wanted = {n.lower() for n in names}
+          roots = [
+              Path("analysis/partitions"), Path("analysis/standalone"),
+              Path("analysis/vendor"), Path("analysis/odm"),
+              Path("analysis/system"), Path("analysis/system_ext"),
+              Path("analysis/product"), Path("analysis/vendor_dlkm"),
+              Path("analysis/system_dlkm"), Path("analysis/odm_dlkm"),
+              Path("analysis/boot/unpacked"), Path("analysis/vendor_boot/unpacked"),
+          ]
+          found = {n: [] for n in sorted(wanted)}
+          extra_board = []
+          scanned_roots = []
+          seen_files = set()
+
+          for root in roots:
+              if not root.exists():
+                  continue
+              scanned_roots.append(str(root))
+              for p in root.rglob("*"):
+                  if not p.is_file():
+                      continue
+                  try:
+                      resolved = p.resolve()
+                      if resolved in seen_files:
+                          continue
+                      seen_files.add(resolved)
+                      low = p.name.lower()
+                      if low in wanted:
+                          found[low].append(p)
+                      elif low.startswith("bd_") and low.endswith(".elf"):
+                          extra_board.append(p)
+                  except (OSError, PermissionError):
+                      continue
+
+          out = Path("reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          lines = [
+              "# Pipa WLAN stock-ROM file inventory", "",
+              "- Source: official Xiaomi Pipa fastboot ROM extracted by this workflow.",
+              "- This report records paths, sizes and SHA-256 only; proprietary firmware binaries are not copied into Git.",
+              "- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk roots scanned below.",
+              "",
+              "## Scanned extraction roots", "",
+          ]
+          lines.extend(f"- `{r}`" for r in scanned_roots)
+          lines += ["", "## Requested files", "",
+                    "| Filename | Status | Stock-ROM path | Size | SHA-256 |",
+                    "|---|---|---|---:|---|"]
+          for name in sorted(wanted):
+              matches = sorted(found[name], key=lambda p: str(p))
+              if not matches:
+                  lines.append(f"| `{name}` | **NOT FOUND** | — | — | — |")
+                  continue
+              for p in matches:
+                  try:
+                      size = p.stat().st_size
+                      digest = hashlib.sha256(p.read_bytes()).hexdigest()
+                      rel = str(p)
+                      lines.append(f"| `{name}` | **FOUND** | `{rel}` | {size} | `{digest}` |")
+                  except OSError as e:
+                      lines.append(f"| `{name}` | **FOUND, unreadable** | `{p}` | — | {e} |")
+
+          lines += ["", "## Additional board firmware files", "",
+                    "| Filename | Stock-ROM path | Size | SHA-256 |",
+                    "|---|---|---:|---|"]
+          if extra_board:
+              for p in sorted(extra_board, key=lambda p: str(p)):
+                  try:
+                      data = p.read_bytes()
+                      lines.append(f"| `{p.name}` | `{p}` | {len(data)} | `{hashlib.sha256(data).hexdigest()}` |")
+                  except OSError:
+                      lines.append(f"| `{p.name}` | `{p}` | — | unreadable |")
+          else:
+              lines.append("| — | No additional bd_*.elf files found | — | — |")
+
+          lines += [
+              "", "## Handling",
+              "",
+              "The workflow intentionally does not commit extracted Xiaomi binaries or firmware. Use the reported paths and hashes to verify the stock-ROM source and stage only files that are licensed and appropriate for the recovery project.",
+              ""
+          ]
+          out.write_text("\n".join(lines))
+          found_count = sum(bool(v) for v in found.values())
+          print(f"Requested unique filenames found: {found_count}/{len(wanted)}")
+          print(f"Inventory written: {out}")
+          PY
+
       - name: Compare recovery tree with Pipa vendor WLAN stack
         env:
           FIRMWARE_TAG: ${{ steps.firmware.outputs.tag }}
@@ -517,8 +639,7 @@ jobs:
           add()
           if findings:
               for severity, label, detail in findings:
-                  add(f"- **{severity}: {label}** — {detail}")
-          else:
+                  add(f"- **{severity}: {label}** — {detail}")          else:
               add("- No missing static checks detected. Hardware validation is still required.")
           add()
           add("## Interpretation")
@@ -552,6 +673,7 @@ jobs:
           # Never commit the downloaded ROM, partition images, or extracted
           # Android filesystem trees: those are large firmware binaries.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
+          if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
             firmware/source.txt \
             firmware/release-assets.txt \
