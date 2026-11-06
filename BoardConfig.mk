@@ -107,10 +107,10 @@ TARGET_SCREEN_HEIGHT := 2880
 TARGET_SCREEN_WIDTH := 1800
 TW_FRAMERATE := 120
 
-# Android 14 / OrangeFox 14.1 base (API 34)
-PLATFORM_VERSION := 14
+# Android 13 base (API 33)
+PLATFORM_VERSION := 13
 PLATFORM_VERSION_LAST_STABLE := $(PLATFORM_VERSION)
-TARGET_RECOVERY_DEVICE_API_LEVEL := 34
+TARGET_RECOVERY_DEVICE_API_LEVEL := 33
 
 # WLAN — Pipa vendor provides Qualcomm QCA CLD3 candidates.
 # Module loading remains gated on matching vermagic/dependencies to the recovery kernel.
