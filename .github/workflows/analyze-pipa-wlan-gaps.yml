@@ -36,7 +36,7 @@ jobs:
       - name: Install firmware analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio aria2 jq
 
       - name: Set up Go for LP tools
         uses: actions/setup-go@v5
@@ -85,73 +85,99 @@ jobs:
           [ -n "$TAG" ] || { echo "::error::Could not resolve a firmware release"; exit 1; }
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "release_url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
-          # Vendor and ODM are required; other partitions are optional release assets.
-          for image in vendor_a.img odm_a.img boot.img vendor_boot.img system_a.img system_ext_a.img product_a.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img vendor_dlkm.img system_dlkm.img odm_dlkm.img; do
-            url="$(jq -r --arg n "$image" '.assets[] | select(.name == $n) | .browser_download_url' release.json | head -n1)"
-            if [ -n "$url" ] && [ "$url" != "null" ]; then
-              echo "Downloading $image"
-              curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$image"
-            elif [ "$image" = "vendor_a.img" ] || [ "$image" = "odm_a.img" ]; then
-              echo "::error::Release $TAG has no required $image"; exit 1
-            else
-              echo "Optional partition not published: $image"
-            fi
-          done
-          # Download split assets (product/super and optional DLKM images).
+          # Download the complete published fastboot ROM asset set, not only
+          # the handful of partitions used by the original WLAN audit.
+          # aria2 uses parallel connections and parallel asset downloads.
+          : > firmware/downloads.txt
           while IFS= read -r asset; do
             name="$(jq -r '.name' <<< "$asset")"
             url="$(jq -r '.browser_download_url' <<< "$asset")"
-            case "$name" in product_a.img.part*|super.img.part*|vendor_dlkm_a.img.part*|system_dlkm_a.img.part*|odm_dlkm_a.img.part*)
-              [ -f "firmware/$name" ] || { echo "Downloading split asset $name"; curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$name"; }
-              ;;
+            case "$name" in
+              *.img|*.img.part*|SHA256SUMS|ROM-INFO.md|SOURCE_ARCHIVE_SHA256.txt)
+                printf '%s\n out=%s\n' "$url" "$name" >> firmware/downloads.txt
+                ;;
             esac
           done < <(jq -c '.assets[]' release.json)
+          [ -s firmware/downloads.txt ] || { echo "::error::No ROM image assets found"; exit 1; }
+          echo "Assets queued: $(grep -c '^https://' firmware/downloads.txt)"
+          aria2c --continue=true --max-connection-per-server=16 --split=16 \
+            --max-concurrent-downloads=8 --min-split-size=8M \
+            --file-allocation=none --retry-wait=5 --max-tries=5 \
+            --summary-interval=30 --console-log-level=notice \
+            --dir=firmware --input-file=firmware/downloads.txt
+          # Verify the release-provided checksums where the manifest is present.
+          if [ -f firmware/SHA256SUMS ]; then
+            (cd firmware && sha256sum -c SHA256SUMS) | tee firmware/checksum-verification.txt
+          else
+            echo "::warning::Release has no SHA256SUMS manifest"
+          fi
           jq -r '.assets[].name' release.json > firmware/release-assets.txt
 
-      - name: Reassemble split partition assets and inspect super
+      - name: Reassemble ROM images and unpack every super partition
         run: |
           set -euo pipefail
-          # Reassemble split GitHub release assets in numeric order.
-          for base in product_a.img super.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img; do
-            [ -f "firmware/$base" ] && continue
-            mapfile -t chunks < <(find firmware -maxdepth 1 -type f -name "$base.part*" | sort -V)
+          # Join every split image in numeric order.
+          while IFS= read -r first; do
+            base="${first%.part*}"
+            [ -f "$base" ] && continue
+            mapfile -t chunks < <(find firmware -maxdepth 1 -type f -name "$(basename "$base").part*" | sort -V)
             if [ "${#chunks[@]}" -gt 0 ]; then
-              echo "Reassembling $base from ${#chunks[@]} chunks"
-              cat "${chunks[@]}" > "firmware/$base"
+              echo "Reassembling $(basename "$base") from ${#chunks[@]} pieces"
+              cat "${chunks[@]}" > "$base"
             fi
-          done
+          done < <(find firmware -maxdepth 1 -type f -name '*.img.part*' | sort -V)
+          mkdir -p analysis/super
           if [ -f firmware/super.img ]; then
-            mkdir -p analysis/super
             super_input=firmware/super.img
-            sparse_magic="$(od -An -tx1 -N4 "$super_input" | tr -d ' \\n')"
+            sparse_magic="$(od -An -tx1 -N4 "$super_input" | tr -d ' \n')"
             if [ "$sparse_magic" = "3aff26ed" ]; then
-              echo "Converting sparse super.img to raw before LP extraction"
+              echo "Converting sparse super.img to raw"
               simg2img "$super_input" firmware/super_raw.img
               super_input=firmware/super_raw.img
             fi
-            if command -v lpunpack >/dev/null 2>&1; then
-              lpunpack "$super_input" analysis/super
-            else
-              echo "::error::lpunpack is required but was not installed"; exit 1
-            fi
+            echo "Unpacking dynamic partitions from super.img"
+            lpunpack "$super_input" analysis/super
+            # Extract every logical partition emitted by lpunpack, including
+            # partitions not specifically named by the WLAN audit.
             for image in analysis/super/*.img; do
               [ -f "$image" ] || continue
               name="$(basename "$image" .img)"
               name="${name%_a}"
-              case "$name" in vendor|odm|system|system_ext|product|vendor_dlkm|system_dlkm|odm_dlkm)
-                mkdir -p "analysis/$name"
-                [ -n "$(find "analysis/$name" -mindepth 1 -print -quit 2>/dev/null)" ] && continue
-                magic="$(od -An -tx1 -N4 "$image" | tr -d ' \\n')"
-                if [ "$magic" = "3aff26ed" ]; then simg2img "$image" "firmware/${name}_super_raw.img"; image="firmware/${name}_super_raw.img"; fi
-                erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \\n' || true)"
-                if [ "$erofs_magic" = "e0f5e1e2" ]; then
-                  fsck.erofs --extract="analysis/$name" "$image"
+              out="analysis/partitions/$name"
+              mkdir -p "$out"
+              magic="$(od -An -tx1 -N4 "$image" | tr -d ' \n')"
+              if [ "$magic" = "3aff26ed" ]; then
+                raw="firmware/${name}_super_raw.img"
+                simg2img "$image" "$raw"
+                image="$raw"
+              fi
+              erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \n' || true)"
+              if [ "$erofs_magic" = "e0f5e1e2" ]; then
+                tmp="${out}.extract"
+                rm -rf "$tmp"; mkdir -p "$tmp"
+                if fsck.erofs --extract="$tmp" "$image"; then
+                  sudo find "$tmp" -type d -exec chmod 755 {} + 2>/dev/null || true
+                  sudo find "$tmp" -type f -exec chmod 644 {} + 2>/dev/null || true
+                  rmdir "$out" 2>/dev/null || true
+                  mv "$tmp" "$out"
                 else
-                  sudo mount -o loop,ro,noload "$image" "analysis/$name" || echo "::warning::Could not mount super partition $name"
+                  echo "::warning::EROFS extraction failed for $name"
+                  rm -rf "$tmp"
                 fi
-              esac
+              elif file "$image" | grep -qi 'ext[234] filesystem'; then
+                sudo mount -o loop,ro,noload "$image" "$out" || echo "::warning::Could not mount $name"
+              else
+                echo "Retained raw logical partition: $name ($(file -b "$image"))"
+              fi
             done
+          else
+            echo "::warning::Complete ROM download did not include super.img"
           fi
+          # Inventory every downloaded image, including boot-chain, modem,
+          # persist, cust and other non-dynamic partitions.
+          find firmware -maxdepth 1 -type f -name '*.img' -printf '%f\t%s bytes\n' | sort > analysis/rom-image-inventory.txt
+          find analysis/super -maxdepth 1 -type f -name '*.img' -printf '%f\t%s bytes\n' | sort > analysis/super-partition-inventory.txt
+
       - name: Extract available Android filesystem partitions
         run: |
           set -euo pipefail
