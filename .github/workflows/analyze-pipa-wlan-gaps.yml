@@ -17,7 +17,7 @@ on:
       - ".github/workflows/analyze-pipa-wlan-gaps.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: pipa-wlan-gap-analysis
@@ -525,42 +525,40 @@ jobs:
           print(f"Report written. Findings: {len(findings)}")
           PY
 
-      - name: Make analysis files readable for artifact upload
+      - name: Commit WLAN analysis results directly to repository
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # EROFS extraction can preserve restrictive source permissions (for
-          # example, directories with mode 000). Normalize the exported copy;
-          # do not rely on chmod -R alone, which may fail to descend into them.
-          sudo find reports firmware analysis -type d -exec chmod 755 {} + 2>/dev/null || true
-          sudo find reports firmware analysis -type f -exec chmod 644 {} + 2>/dev/null || true
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/* ]]; then
+            echo "::warning::Skipping report commit because this run is not on a branch."
+            exit 0
+          fi
 
-      - name: Upload WLAN gap report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pipa-wlan-gap-analysis
-          path: |
-            reports/PIPA_WLAN_GAP_ANALYSIS.md
-            firmware/release-assets.txt
-            firmware/source.txt
-            firmware/rom-image-list.txt
-            firmware/xiaomi_fastboot_rom/**
-            analysis/boot/**
-            analysis/vendor_boot/**
-            analysis/super/**
-            analysis/partitions/**
-            analysis/standalone/**
-            analysis/rom-image-inventory.txt
-            analysis/super-partition-inventory.txt
-            analysis/vendor/**
-            analysis/odm/**
-            analysis/system/**
-            analysis/system_ext/**
-            analysis/product/**
-            analysis/vendor_dlkm/**
-            analysis/system_dlkm/**
-            analysis/odm_dlkm/**
-          if-no-files-found: warn
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Commit only human-readable audit outputs and provenance metadata.
+          # Never commit the downloaded ROM, partition images, or extracted
+          # Android filesystem trees: those are large firmware binaries.
+          git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
+          for output in \
+            firmware/source.txt \
+            firmware/release-assets.txt \
+            firmware/rom-image-list.txt \
+            analysis/rom-image-inventory.txt \
+            analysis/super-partition-inventory.txt; do
+            if [ -f "$output" ]; then git add -f "$output"; fi
+          done
+
+          if git diff --cached --quiet; then
+            echo "No report changes to commit."
+            exit 0
+          fi
+
+          git commit -m "ci: update Pipa WLAN firmware analysis"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Unmount extracted filesystem images
         if: always()
