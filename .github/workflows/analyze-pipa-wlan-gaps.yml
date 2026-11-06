@@ -267,15 +267,29 @@ jobs:
           from pathlib import Path
 
           root = Path(".")
-          vendor = Path("analysis/vendor")
-          odm = Path("analysis/odm")
-          partition_names = ["system", "system_ext", "product", "vendor_dlkm", "system_dlkm", "odm_dlkm"]
-          other_parts = {name: Path("analysis") / name for name in partition_names if (Path("firmware") / f"{name}_a.img").exists() or (Path("firmware") / f"{name}.img").exists()}
-          logical_parts_root = Path("analysis/partitions")
-          logical_parts = {p.name: p for p in logical_parts_root.iterdir() if p.is_dir()} if logical_parts_root.exists() else {}
-          standalone_root = Path("analysis/standalone")
-          standalone_parts = {p.name: p for p in standalone_root.iterdir() if p.is_dir()} if standalone_root.exists() else {}
-          all_fs_roots = [vendor, odm, *other_parts.values(), *logical_parts.values(), *standalone_parts.values()]
+          # Resolve each Android partition to one populated extraction root.
+          # lpunpack output lives under analysis/partitions/<name>; standalone
+          # image extraction lives under analysis/standalone/<name>. Older
+          # workflow versions also extracted directly under analysis/<name>.
+          partition_names = ["vendor", "odm", "system", "system_ext", "product",
+                             "vendor_dlkm", "system_dlkm", "odm_dlkm"]
+          def populated(path):
+              return path.is_dir() and next(path.iterdir(), None) is not None
+
+          partition_roots = {}
+          for name in partition_names:
+              candidates = [
+                  Path("analysis/partitions") / name,
+                  Path("analysis/standalone") / name,
+                  Path("analysis") / name,
+              ]
+              selected = next((p for p in candidates if populated(p)), None)
+              if selected is not None:
+                  partition_roots[name] = selected
+
+          vendor = partition_roots.get("vendor", Path("analysis/vendor"))
+          odm = partition_roots.get("odm", Path("analysis/odm"))
+          all_fs_roots = list(dict.fromkeys(partition_roots.values()))
           recovery = Path("recovery/root")
           report = []
           findings = []
@@ -370,8 +384,8 @@ jobs:
           add()
           add("| Partition | WLAN firmware/config matches |")
           add("|---|---|")
-          asset_re = re.compile(r"(WCNSS.*\\.(?:ini|mbn)|wlan_mac\\.bin|bdwlan\\.bin|\\.(?:mbn|elf)$|/wlan/|/wifi/)", re.I)
-          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items(), *logical_parts.items(), *standalone_parts.items()]:
+          asset_re = re.compile(r"(WCNSS.*\.(?:ini|mbn)|wlan_mac\.bin|bdwlan\.bin|\.(?:mbn|elf)$|/wlan/|/wifi/)", re.I)
+          for part_name, part_root in partition_roots.items():
               hits = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and asset_re.search("/" + str(p.relative_to(part_root)))]
               add(f"| {part_name} | " + (", ".join(hits[:150]) if hits else "No filename matches") + " |")
 
@@ -452,7 +466,7 @@ jobs:
           add("| Partition | WLAN-related files found |")
           add("|---|---|")
           wlan_pattern = re.compile(r"(wlan|wifi|qca|cnss|icnss|supplicant|hostapd|\.ko$)", re.I)
-          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items(), *logical_parts.items(), *standalone_parts.items()]:
+          for part_name, part_root in partition_roots.items():
               matches = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and wlan_pattern.search(p.name)]
               add(f"| {part_name} | " + (", ".join(matches[:100]) if matches else "No filename matches") + " |")
           for part_name in ("boot", "vendor_boot"):
