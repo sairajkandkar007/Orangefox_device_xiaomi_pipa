@@ -1,0 +1,21 @@
+# Copyright (C) 2026 Pipa OrangeFox contributors
+# SPDX-License-Identifier: Apache-2.0
+
+# Start the Pipa-specific WLAN module loader after firmware partitions are mounted.
+on property:twrp.firmware.mounted=true && property:ro.twrp.fastbootd=0
+    start wlan_setup
+
+on property:twrp.wlan.drivers.loaded=true
+    write /dev/kmsg "[PIPA-WLAN] Driver setup complete; starting Qualcomm WLAN services"
+    start vendor.rmt_storage
+    start vendor.pd-mapper
+    start vendor.pm-service
+    start vendor.pm-proxy
+    start vendor.cnss-daemon
+
+# OrangeFox toggles this property when Wi-Fi is enabled.
+on property:sys.fox.wlan.up=1
+    mkdir /tmp/recovery 0777 root root
+    mkdir /tmp/recovery/sockets 0777 root root
+    restart wpa_supplicant
+    setprop sys.fox.wlan.up 0
