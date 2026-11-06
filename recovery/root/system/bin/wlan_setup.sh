@@ -22,25 +22,31 @@ module_loaded() {
 # Recursively load dependencies when modules.dep is available in the vendor dump.
 load_module() {
     rel="$1"
-    path="$MODDIR/$rel"
-    [ -f "$path" ] || return 1
-    name=$(basename "${rel%.ko}" | tr '-' '_')
+    base=$(basename "$rel")
+    path=$(find "$MODDIR" -type f -name "$base" 2>/dev/null | head -n 1)
+    [ -n "$path" ] && [ -f "$path" ] || return 1
+    name=$(basename "${base%.ko}" | tr '-' '_')
     module_loaded "$name" && return 0
 
+    # Mark before descending so an unexpected dependency cycle cannot recurse forever.
+    state="/tmp/pipa-wlan-module-$name"
+    [ ! -e "$state" ] || return 1
+    : > "$state"
+
     if [ -f "$DEPFILE" ]; then
-        line=$(grep -m1 "^$rel:" "$DEPFILE")
+        line=$(grep -m1 -E "(^|/)$base:" "$DEPFILE" || true)
         deps=${line#*:}
         for dep in $deps; do
-            dep=$(echo "$dep" | sed "s#^$MODDIR/##")
-            load_module "$dep" || log "Dependency load failed: $dep"
+            depbase=$(basename "$dep")
+            load_module "$depbase" || log "Dependency load failed: $depbase"
         done
     fi
 
     if insmod "$path" >> "$LOG" 2>&1; then
-        log "Loaded $rel"
+        log "Loaded $base"
         return 0
     fi
-    log "Could not load $rel (check vermagic, symbols and dmesg)"
+    log "Could not load $base (check vermagic, symbols and dmesg)"
     return 1
 }
 
