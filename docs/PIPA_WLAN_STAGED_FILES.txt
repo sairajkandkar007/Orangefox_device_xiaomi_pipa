@@ -1,7 +1,20 @@
 # Pipa WLAN files staged by the vendor/ODM analysis workflow
-recovery/root/vendor/etc/hostapd/hostapd_default.conf
-recovery/root/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini
-recovery/root/vendor/etc/wifi/wpa_supplicant.conf
-recovery/root/vendor/etc/wifi/wpa_supplicant_overlay.conf
-recovery/root/vendor/lib/modules/qca_cld3_qca6390.ko
-recovery/root/vendor/lib/modules/qca_cld3_qca6490.ko
+
+The workflow stages Pipa-specific files from the selected Pipa firmware release:
+
+- `recovery/root/vendor/lib/modules/*.ko` — complete vendor module set, including the QCA6390/QCA6490 CLD3 candidates and any dependency metadata present in the dump.
+- `recovery/root/vendor/firmware/wlan/qca_cld/` — Pipa WLAN firmware and chipset configuration.
+- `recovery/root/vendor/etc/wifi/` — Pipa supplicant and QCA6390 configuration.
+- `recovery/root/vendor/bin/cnss-daemon` and `rmt_storage` — copied when present in the Pipa vendor image.
+- `recovery/root/vendor/bin/hw/wpa_supplicant` — Pipa vendor supplicant.
+- `recovery/root/vendor/lib/` and `lib64/` — recursively resolved vendor ELF dependencies for the staged daemons.
+
+Run **Analyze Pipa vendor and ODM firmware** after changing the staging workflow to populate/update these files. The amethyst commit's QCA6750 modules, firmware, sysfs paths and PM services are not used for Pipa.
+
+The recovery init integration and loader are maintained in:
+- `recovery/root/init.recovery.wlan.rc`
+- `recovery/root/system/bin/wlan_setup.sh`
+- `recovery/root/system/etc/init/`
+- `recovery/root/vendor/etc/init/`
+
+Module insertion is not proof of working Wi-Fi. Confirm module vermagic/dependencies against the exact recovery kernel, then test wlan0, firmware loading, CNSS daemon startup and supplicant association on-device.
