@@ -3,7 +3,7 @@
 - **Firmware:** Pipa Fastboot ROM - OS2.0.14.0.UMZINXM
 - **Release tag:** `fastboot-OS2.0.14.0.UMZINXM`
 - **Release:** https://github.com/sairajkandkar007/firmware_device_xiaomi_pipa/releases/tag/fastboot-OS2.0.14.0.UMZINXM
-- **Generated (UTC):** 2026-11-06 08:09:11
+- **Generated (UTC):** 2026-11-06 08:15:45
 - **Scope:** read-only inspection of the release's standalone `vendor_a.img` and `odm_a.img`.
 - **Note:** this report is generated from the mounted images; it does not modify or commit firmware binaries.
 
