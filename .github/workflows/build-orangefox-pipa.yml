@@ -93,7 +93,7 @@ jobs:
           import re
           p = Path("orangefox_sync.sh")
           data = p.read_text()
-          updated, count = re.subn(r'(?m)(\brepo\s+init\s+)(?!.*--depth)', r'\1--depth=1 ', data)
+          updated, count = re.subn(r'(?m)(\\brepo\\s+init\\s+)(?!.*--depth)', r'\\1--depth=1 ', data)
           if count == 0:
               raise SystemExit("Could not locate repo init command in orangefox_sync.sh; refusing a non-shallow sync")
           p.write_text(updated)
@@ -114,7 +114,8 @@ jobs:
       - name: Build OrangeFox
         shell: bash
         run: |
-          set -euo pipefail
+          # Android envsetup uses temporarily-unset variables; do not enable nounset here.
+          set -eo pipefail
           cd "$GITHUB_WORKSPACE/OrangeFox/fox_$FOX_BRANCH"
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
