@@ -24,7 +24,7 @@ jobs:
       - name: Copy selected binaries
         run: |
           mkdir -p recovery/root/system/bin
-          for tool in parted wimlib sgdisk ntfsfix ntfsresize; do
+          for tool in parted wimlib sgdisk gdisk ntfsfix ntfsresize; do
             src="$RUNNER_TEMP/nabu/recovery/root/system/bin/$tool"
             test -f "$src"
             install -m 0755 "$src" "recovery/root/system/bin/$tool"
@@ -32,14 +32,14 @@ jobs:
 
       - name: Verify imported files
         run: |
-          file recovery/root/system/bin/{parted,wimlib,sgdisk,ntfsfix,ntfsresize}
-          sha256sum recovery/root/system/bin/{parted,wimlib,sgdisk,ntfsfix,ntfsresize}
+          file recovery/root/system/bin/{parted,wimlib,sgdisk,gdisk,ntfsfix,ntfsresize}
+          sha256sum recovery/root/system/bin/{parted,wimlib,sgdisk,gdisk,ntfsfix,ntfsresize}
 
       - name: Commit binaries
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add recovery/root/system/bin/parted recovery/root/system/bin/wimlib recovery/root/system/bin/sgdisk recovery/root/system/bin/ntfsfix recovery/root/system/bin/ntfsresize
+          git add recovery/root/system/bin/parted recovery/root/system/bin/wimlib recovery/root/system/bin/sgdisk recovery/root/system/bin/gdisk recovery/root/system/bin/ntfsfix recovery/root/system/bin/ntfsresize
           if git diff --cached --quiet; then
             echo "Selected Nabu binaries are already up to date."
             exit 0
