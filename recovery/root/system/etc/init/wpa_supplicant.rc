@@ -1,9 +1,11 @@
 # Copyright (C) 2026 Pipa OrangeFox contributors
 # SPDX-License-Identifier: Apache-2.0
 
-service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -O/tmp/recovery/sockets -c/vendor/etc/wifi/wpa_supplicant.conf
+service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -dd -O/tmp/recovery/sockets -c/vendor/etc/wifi/wpa_supplicant.conf
     user root
     group root wifi
     setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw:/system/lib64:/vendor/odm/lib64:/bin
     seclabel u:r:recovery:s0
+    task_profiles CPUSET_SP_FOREGROUND
+    override
     disabled
