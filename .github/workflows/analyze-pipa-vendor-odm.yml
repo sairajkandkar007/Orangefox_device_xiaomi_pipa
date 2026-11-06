@@ -29,7 +29,7 @@ jobs:
       - name: Install image analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils
 
       - name: Resolve firmware release and download images
         id: firmware
@@ -114,17 +114,20 @@ jobs:
           set -euo pipefail
           VENDOR=analysis/vendor
           DEST=recovery/root/vendor
-          mkdir -p "$DEST/lib/modules" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390" "$DEST/etc/hostapd"
+          mkdir -p "$DEST/lib/modules" "$DEST/bin" "$DEST/bin/hw" "$DEST/lib64" "$DEST/lib" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390" "$DEST/etc/hostapd"
 
-          # Keep both Pipa-provided candidates. Do not load either automatically:
-          # this inventory cannot prove the active chipset or kernel ABI match.
+          # Stage Pipa's own QCA CLD3 candidates and any vendor module dependency metadata.
           for module in qca_cld3_qca6390.ko qca_cld3_qca6490.ko; do
             src="$VENDOR/lib/modules/$module"
             if [ ! -f "$src" ]; then echo "::error::Missing Pipa WLAN module: $src"; exit 1; fi
             install -m 0644 "$src" "$DEST/lib/modules/$module"
           done
+          for metadata in modules.dep modules.alias modules.softdep modules.order modules.load; do
+            [ ! -f "$VENDOR/lib/modules/$metadata" ] || install -m 0644 "$VENDOR/lib/modules/$metadata" "$DEST/lib/modules/$metadata"
+          done
 
-          # Stage Pipa-specific firmware/configuration, not Amethyst/QCA6750 assets.
+          # Pipa firmware paths. Do not import Amethyst's QCA6750 firmware/config.
+          [ ! -f "$VENDOR/firmware/wlan/qca_cld/WCNSS_qcom_cfg.ini" ] || install -m 0644 "$VENDOR/firmware/wlan/qca_cld/WCNSS_qcom_cfg.ini" "$DEST/firmware/wlan/qca_cld/"
           for chipset in qca6390 qca6490; do
             src="$VENDOR/firmware/wlan/qca_cld/$chipset"
             [ ! -f "$src/WCNSS_qcom_cfg.ini" ] || install -m 0644 "$src/WCNSS_qcom_cfg.ini" "$DEST/firmware/wlan/qca_cld/$chipset/"
@@ -134,12 +137,60 @@ jobs:
           [ ! -f "$VENDOR/etc/wifi/wpa_supplicant.conf" ] || install -m 0644 "$VENDOR/etc/wifi/wpa_supplicant.conf" "$DEST/etc/wifi/"
           [ ! -f "$VENDOR/etc/wifi/wpa_supplicant_overlay.conf" ] || install -m 0644 "$VENDOR/etc/wifi/wpa_supplicant_overlay.conf" "$DEST/etc/wifi/"
           if [ -f "$VENDOR/etc/hostapd/hostapd_default.conf" ]; then
-            mkdir -p "$DEST/etc/hostapd"
             install -m 0644 "$VENDOR/etc/hostapd/hostapd_default.conf" "$DEST/etc/hostapd/"
           fi
 
+          # Copy the Pipa vendor WLAN daemons/supplicant when present.
+          for binary in cnss-daemon rmt_storage; do
+            if [ -f "$VENDOR/bin/$binary" ]; then
+              install -m 0755 "$VENDOR/bin/$binary" "$DEST/bin/$binary"
+            else
+              echo "::warning::Pipa vendor binary not found: vendor/bin/$binary"
+            fi
+          done
+          if [ -f "$VENDOR/bin/hw/wpa_supplicant" ]; then
+            install -m 0755 "$VENDOR/bin/hw/wpa_supplicant" "$DEST/bin/hw/wpa_supplicant"
+          else
+            echo "::error::Pipa vendor wpa_supplicant is missing"
+            exit 1
+          fi
+
+          # Resolve vendor ELF dependencies recursively instead of copying the entire vendor library tree.
+          python3 - <<'PY'
+          import re, shutil, subprocess
+          from pathlib import Path
+
+          vendor = Path("analysis/vendor")
+          dest = Path("recovery/root/vendor")
+          search_roots = [vendor / "lib64", vendor / "lib64/hw", vendor / "lib", vendor / "lib/hw"]
+          queue = [dest / "bin/cnss-daemon", dest / "bin/rmt_storage", dest / "bin/hw/wpa_supplicant"]
+          seen = set()
+          needed_re = re.compile(r"Shared library: \[(.+?)\]")
+          while queue:
+              binary = queue.pop()
+              if not binary.is_file() or binary in seen:
+                  continue
+              seen.add(binary)
+              try:
+                  output = subprocess.check_output(["readelf", "-d", str(binary)], text=True, stderr=subprocess.DEVNULL)
+              except Exception:
+                  continue
+              for soname in needed_re.findall(output):
+                  candidates = [root / soname for root in search_roots]
+                  source = next((p for p in candidates if p.is_file()), None)
+                  if source is None:
+                      continue  # Bionic/system libraries are supplied by recovery.
+                  relative = source.relative_to(vendor)
+                  target = dest / relative
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  if not target.exists():
+                      shutil.copy2(source, target)
+                  queue.append(target)
+          print(f"Resolved vendor ELF dependencies for {len(seen)} executables/libraries")
+          PY
+
           mkdir -p docs
-          { echo "# Pipa WLAN files staged by the vendor/ODM analysis workflow"; find "$DEST/lib/modules" "$DEST/firmware/wlan" "$DEST/etc/wifi" "$DEST/etc/hostapd" -type f -print 2>/dev/null | sort; } > docs/PIPA_WLAN_STAGED_FILES.txt
+          { echo "# Pipa WLAN files staged by the vendor/ODM analysis workflow"; find "$DEST/bin" "$DEST/lib" "$DEST/lib64" "$DEST/lib/modules" "$DEST/firmware/wlan" "$DEST/etc/wifi" "$DEST/etc/hostapd" -type f -print 2>/dev/null | sort; } > docs/PIPA_WLAN_STAGED_FILES.txt
 
       - name: Generate detailed Markdown report
         env:
