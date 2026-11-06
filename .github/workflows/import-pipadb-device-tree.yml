@@ -1,0 +1,44 @@
+name: Import PipaDB device tree
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-device-tree:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone PipaDB source tree
+        run: |
+          git clone --branch fox_12.1-a16 --single-branch \
+            https://github.com/PipaDB/OFRP-device_xiaomi_pipa.git \
+            "$RUNNER_TEMP/pipadb-source"
+
+      - name: Copy source tree without modifications
+        run: |
+          rsync -a --delete \
+            --exclude='/.git/' \
+            --exclude='/.github/' \
+            "$RUNNER_TEMP/pipadb-source/" ./
+          test -f prebuilt/kernel
+          test -f prebuilt/dtb
+          test -f prebuilt/dtbo.img
+
+      - name: Commit imported device tree
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Destination already matches the imported source tree."
+            exit 0
+          fi
+          git commit -m "Import PipaDB Xiaomi Pad 6 device tree unchanged"
+          git push origin HEAD:main
