@@ -36,8 +36,18 @@ jobs:
       - name: Install firmware analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio
 
+      - name: Install MagiskBoot
+        run: |
+          set -euo pipefail
+          mkdir -p tools
+          # Pin the standalone Linux x86_64 build to a fixed upstream mirror commit.
+          MAGISKBOOT_URL="https://raw.githubusercontent.com/Uevo001/magiskboot-linux/f6a1cb6b584088060261316416b16abb939c6b02/x86_64/magiskboot"
+          curl --fail --location --retry 3 --retry-all-errors "$MAGISKBOOT_URL" -o tools/magiskboot
+          chmod 0755 tools/magiskboot
+          file tools/magiskboot
+          ./tools/magiskboot 2>&1 | head -n 20 || true
       - name: Resolve Pipa firmware release
         id: firmware
         env:
@@ -144,21 +154,32 @@ jobs:
             fi
           done
 
-      - name: Inspect boot and vendor_boot images
+      - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
           set -euo pipefail
           for part in boot vendor_boot; do
             image="firmware/$part.img"
             [ -f "$image" ] || continue
-            mkdir -p "analysis/$part"
+            out="analysis/$part/unpacked"
+            mkdir -p "$out"
             file "$image" | tee "analysis/$part/image-type.txt"
-            if command -v unpack_bootimg >/dev/null 2>&1; then
-              unpack_bootimg --boot_img "$image" --out "analysis/$part/unpacked" || true
+            if ./tools/magiskboot unpack "$image" >"analysis/$part/magiskboot.log" 2>&1; then
+              echo "MagiskBoot successfully unpacked $part.img"
+              find . -maxdepth 1 -type f \\( -name kernel -o -name ramdisk.cpio -o -name dtb -o -name header -o -name vendor_ramdisk.cpio \\) -print -exec mv -t "$GITHUB_WORKSPACE/$out" {} +
+              # magiskboot writes outputs to the current directory; isolate each image.
             else
-              echo "unpack_bootimg unavailable; only image type was recorded." > "analysis/$part/inspection-limitation.txt"
+              cat "analysis/$part/magiskboot.log"
+              echo "::warning::MagiskBoot failed to unpack $part.img"
+            fi
+            if [ -f "$out/ramdisk.cpio" ]; then
+              mkdir -p "$out/ramdisk"
+              (cd "$out/ramdisk" && cpio -idm --quiet --no-absolute-filenames < ../ramdisk.cpio) || echo "::warning::Could not extract $part ramdisk cpio"
+            fi
+            if [ -f "$out/vendor_ramdisk.cpio" ]; then
+              mkdir -p "$out/vendor_ramdisk"
+              (cd "$out/vendor_ramdisk" && cpio -idm --quiet --no-absolute-filenames < ../vendor_ramdisk.cpio) || echo "::warning::Could not extract $part vendor ramdisk cpio"
             fi
           done
-
       - name: Compare recovery tree with Pipa vendor WLAN stack
         env:
           FIRMWARE_TAG: ${{ steps.firmware.outputs.tag }}
