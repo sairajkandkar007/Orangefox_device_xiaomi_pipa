@@ -1,15 +1,23 @@
 # Copyright (C) 2026 Pipa OrangeFox contributors
 # SPDX-License-Identifier: Apache-2.0
 
+# Load the Pipa WLAN stack only after OrangeFox has mounted vendor firmware.
 on property:twrp.firmware.mounted=true && property:ro.twrp.fastbootd=0
     start wlan_setup
 
+# The WLAN driver is loaded by wlan_setup.sh. Protect modem NV/EFS before
+# starting rmt_storage: the unmodified vendor daemon can write these partitions.
 on property:twrp.wlan.drivers.loaded=true
-    write /dev/kmsg "[PIPA-WLAN] Driver setup complete; starting Pipa Qualcomm services"
+    write /dev/kmsg "[PIPA-WLAN] WLAN modules loaded; starting Qualcomm support services"
     start vendor.rmt_storage
+
+# The vendor CNSS daemon expects /data to be available.
+on post-fs-data
     start vendor.cnss-daemon
 
+# OrangeFox raises this property when the user enables Wi-Fi.
 on property:sys.fox.wlan.up=1
+    write /dev/kmsg "[PIPA-WLAN] Starting wpa_supplicant"
     mkdir /tmp/recovery 0777 root root
     mkdir /tmp/recovery/sockets 0777 root root
     restart wpa_supplicant
