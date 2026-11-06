@@ -112,7 +112,7 @@ jobs:
       - name: Stage Pipa WLAN modules and firmware for OrangeFox
         run: |
           set -euo pipefail
-          VENDOR=analysis/vendor/vendor
+          VENDOR=analysis/vendor
           DEST=recovery/root/vendor
           mkdir -p "$DEST/lib/modules" "$DEST/firmware/wlan/qca_cld/qca6390" "$DEST/firmware/wlan/qca_cld/qca6490" "$DEST/etc/wifi/qca6390"
 
@@ -289,7 +289,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p docs
           cp PIPA_VENDOR_ODM_ANALYSIS.md docs/PIPA_VENDOR_ODM_ANALYSIS.md
-          git add docs/PIPA_VENDOR_ODM_ANALYSIS.md
+          git add docs/PIPA_VENDOR_ODM_ANALYSIS.md docs/PIPA_WLAN_STAGED_FILES.txt recovery/root/vendor
           if git diff --cached --quiet; then
             echo "Report is unchanged; no commit needed."
           else
