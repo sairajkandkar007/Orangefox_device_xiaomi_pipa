@@ -29,4 +29,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_SOONG_NAMESPACES += \
     $(LOCAL_PATH)
 
+# Recovery Wi-Fi userspace support (OrangeFox 14.1).
+TW_INCLUDE_WIFI := true
+
 TWRP_REQUIRED_MODULES += miui_prebuilt
