@@ -75,6 +75,15 @@ jobs:
               echo "Optional partition not published: $image"
             fi
           done
+          # Download split assets (product/super and optional DLKM images).
+          while IFS= read -r asset; do
+            name="$(jq -r '.name' <<< "$asset")"
+            url="$(jq -r '.browser_download_url' <<< "$asset")"
+            case "$name" in product_a.img.part*|super.img.part*|vendor_dlkm_a.img.part*|system_dlkm_a.img.part*|odm_dlkm_a.img.part*)
+              [ -f "firmware/$name" ] || { echo "Downloading split asset $name"; curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$name"; }
+              ;;
+            esac
+          done < <(jq -c '.assets[]' release.json)
           jq -r '.assets[].name' release.json > firmware/release-assets.txt
 
       - name: Reassemble split partition assets and inspect super
@@ -255,6 +264,16 @@ jobs:
           for label, rel in expected:
               ok = vendor_exists(rel)
               check(label, ok, f"Looked for vendor/{rel} or odm/{rel}.")
+
+          add()
+          add("### Recursive WLAN firmware/config search")
+          add()
+          add("| Partition | WLAN firmware/config matches |")
+          add("|---|---|")
+          asset_re = re.compile(r"(WCNSS.*\\.(?:ini|mbn)|wlan_mac\\.bin|bdwlan\\.bin|\\.(?:mbn|elf)$|/wlan/|/wifi/)", re.I)
+          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items()]:
+              hits = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and asset_re.search("/" + str(p.relative_to(part_root)))]
+              add(f"| {part_name} | " + (", ".join(hits[:150]) if hits else "No filename matches") + " |")
 
           add()
           add("## Recovery staging and safety")
