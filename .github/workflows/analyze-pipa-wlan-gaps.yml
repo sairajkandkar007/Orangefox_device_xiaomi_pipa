@@ -1,0 +1,336 @@
+name: Analyze Pipa recovery WLAN gaps
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Pipa firmware release tag (blank = latest)"
+        required: false
+        type: string
+        default: ""
+  push:
+    paths:
+      - "BoardConfig.mk"
+      - "device.mk"
+      - "fox_pipa.mk"
+      - "recovery/root/**"
+      - ".github/workflows/analyze-pipa-wlan-gaps.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipa-wlan-gap-analysis
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Pipa recovery tree
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install firmware analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod
+
+      - name: Resolve Pipa firmware release
+        id: firmware
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          REPO="sairajkandkar007/firmware_device_xiaomi_pipa"
+          if [ -n "$REQUESTED_TAG" ]; then
+            API="https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_TAG"
+          else
+            API="https://api.github.com/repos/$REPO/releases/latest"
+          fi
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            "$API" -o release.json
+          TAG="$(jq -r '.tag_name // empty' release.json)"
+          [ -n "$TAG" ] || { echo "::error::Could not resolve a firmware release"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "release_url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
+          mkdir -p firmware analysis/vendor analysis/odm
+          for image in vendor_a.img odm_a.img; do
+            url="$(jq -r --arg n "$image" '.assets[] | select(.name == $n) | .browser_download_url' release.json | head -n1)"
+            [ -n "$url" ] && [ "$url" != "null" ] || { echo "::error::Release $TAG has no $image"; exit 1; }
+            curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$image"
+          done
+          # Record other partition assets. This report must state that DLKM images
+          # were not inspected if the release does not publish them separately.
+          jq -r '.assets[].name' release.json > firmware/release-assets.txt
+
+      - name: Extract vendor and ODM filesystems
+        run: |
+          set -euo pipefail
+          for part in vendor odm; do
+            image="firmware/${part}_a.img"
+            magic="$(od -An -tx1 -N4 "$image" | tr -d ' \n')"
+            if [ "$magic" = "3aff26ed" ]; then
+              simg2img "$image" "firmware/${part}_raw.img"
+              image="firmware/${part}_raw.img"
+            fi
+            desc="$(file -b "$image")"
+            echo "$part: $desc"
+            erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \n' || true)"
+            if [ "$erofs_magic" = "e0f5e1e2" ]; then
+              fsck.erofs --extract="analysis/$part" "$image"
+            else
+              sudo mount -o loop,ro,noload "$image" "analysis/$part"
+              echo "$PWD/firmware/${part}_a.img" > "analysis/${part}.mounted"
+            fi
+          done
+
+      - name: Compare recovery tree with Pipa vendor WLAN stack
+        env:
+          FIRMWARE_TAG: ${{ steps.firmware.outputs.tag }}
+          FIRMWARE_URL: ${{ steps.firmware.outputs.release_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python3 - <<'PY'
+          import os, re, json, subprocess
+          from pathlib import Path
+
+          root = Path(".")
+          vendor = Path("analysis/vendor")
+          odm = Path("analysis/odm")
+          recovery = Path("recovery/root")
+          report = []
+          findings = []
+
+          def add(s=""):
+              report.append(str(s))
+
+          def check(label, ok, detail, severity="MISSING"):
+              status = "PASS" if ok else severity
+              add(f"| {label} | **{status}** | {detail} |")
+              if not ok:
+                  findings.append((severity, label, detail))
+
+          def exists(rel):
+              return (root / rel).exists()
+
+          def vendor_exists(rel):
+              return (vendor / rel).exists() or (odm / rel).exists()
+
+          def text_file(path):
+              try:
+                  return path.read_text(errors="replace")
+              except Exception:
+                  return ""
+
+          def elf_needed(path):
+              try:
+                  out = subprocess.check_output(["readelf", "-d", str(path)], text=True, stderr=subprocess.DEVNULL)
+              except Exception:
+                  return []
+              return re.findall(r"Shared library: \[(.+?)\]", out)
+
+          add("# Pipa OrangeFox WLAN gap analysis")
+          add()
+          add(f"- Firmware release: `{os.environ.get('FIRMWARE_TAG','unknown')}`")
+          add(f"- Firmware: {os.environ.get('FIRMWARE_URL','')}")
+          add("- Reference implementation: [Amethyst WLAN setup commit](https://github.com/chkndrp/device_xiaomi_amethyst-recovery/commit/d55207095b189045fb1e76008cd88dd0cd4979da)")
+          add("- Scope: Pipa `vendor_a.img` and `odm_a.img`, current recovery tree, init integration, WLAN binaries/configuration/modules and ELF dependencies.")
+          add("- This is a static compatibility audit. It does not prove that the driver loads or that Wi-Fi connects on hardware.")
+          add()
+          add("## Required tree integration")
+          add()
+          add("| Check | Result | Detail |")
+          add("|---|---|---|")
+
+          qcom_rc = text_file(recovery / "init.recovery.qcom.rc")
+          wlan_rc = text_file(recovery / "init.recovery.wlan.rc")
+          check("WLAN init import", "import init.recovery.wlan.rc" in qcom_rc,
+                "init.recovery.qcom.rc must import init.recovery.wlan.rc")
+          check("WLAN setup service declaration", exists("recovery/root/system/etc/init/wlan_setup.rc"),
+                "The init service file must declare service wlan_setup; the trigger alone cannot start an undeclared service.")
+          setup_rc = text_file(recovery / "system/etc/init/wlan_setup.rc")
+          check("WLAN setup service executable path", "/system/bin/wlan_setup.sh" in setup_rc and exists("recovery/root/system/bin/wlan_setup.sh"),
+                "wlan_setup.rc must point to the staged helper script.")
+          check("WLAN setup trigger", "start wlan_setup" in wlan_rc,
+                "init.recovery.wlan.rc should start wlan_setup after firmware mount.")
+          check("Supplicant service declaration", exists("recovery/root/system/etc/init/wpa_supplicant.rc"),
+                "A wpa_supplicant init service file must be present.")
+          supp_rc = text_file(recovery / "system/etc/init/wpa_supplicant.rc")
+          check("Supplicant executable", "/vendor/bin/hw/wpa_supplicant" in supp_rc and vendor_exists("bin/hw/wpa_supplicant"),
+                "Service command must match the Pipa vendor supplicant path.")
+          check("Wi-Fi feature flags", all(x in text_file(root / "BoardConfig.mk") for x in ["BOARD_WLAN_DEVICE := qcwcn","WIFI_DRIVER_DEFAULT := qca_cld3","BOARD_WPA_SUPPLICANT_DRIVER := NL80211"]) and "TW_INCLUDE_WIFI := true" in text_file(root / "device.mk") and "OF_ENABLE_WLAN := 1" in text_file(root / "fox_pipa.mk"),
+                "Check BoardConfig.mk, device.mk and fox_pipa.mk feature flags.")
+
+          add()
+          add("## Pipa vendor/ODM files")
+          add()
+          add("| Check | Result | Detail |")
+          add("|---|---|---|")
+          expected = [
+            ("QCA6390 kernel module", "lib/modules/qca_cld3_qca6390.ko"),
+            ("QCA6490 candidate module", "lib/modules/qca_cld3_qca6490.ko"),
+            ("Vendor supplicant", "bin/hw/wpa_supplicant"),
+            ("CNSS daemon", "bin/cnss-daemon"),
+            ("rmt_storage daemon", "bin/rmt_storage"),
+            ("WPA config", "etc/wifi/wpa_supplicant.conf"),
+            ("WPA overlay config", "etc/wifi/wpa_supplicant_overlay.conf"),
+            ("Hostapd config", "etc/hostapd/hostapd_default.conf"),
+            ("QCA6390 vendor WLAN config", "etc/wifi/qca6390/WCNSS_qcom_cfg.ini"),
+            ("QCA6390 firmware config", "firmware/wlan/qca_cld/qca6390/WCNSS_qcom_cfg.ini"),
+            ("QCA6390 MAC firmware", "firmware/wlan/qca_cld/qca6390/wlan_mac.bin"),
+            ("QCA6490 firmware config", "firmware/wlan/qca_cld/qca6490/WCNSS_qcom_cfg.ini"),
+            ("QCA6490 MAC firmware", "firmware/wlan/qca_cld/qca6490/wlan_mac.bin"),
+            ("WLAN module dependency index", "lib/modules/modules.dep"),
+          ]
+          for label, rel in expected:
+              ok = vendor_exists(rel)
+              check(label, ok, f"Looked for vendor/{rel} or odm/{rel}.")
+
+          add()
+          add("## Recovery staging and safety")
+          add()
+          add("| Check | Result | Detail |")
+          add("|---|---|---|")
+          for label, rel in [
+            ("Staged WLAN module directory", "recovery/root/vendor/lib/modules"),
+            ("Staged vendor supplicant", "recovery/root/vendor/bin/hw/wpa_supplicant"),
+            ("Staged CNSS daemon", "recovery/root/vendor/bin/cnss-daemon"),
+            ("Staged rmt_storage daemon", "recovery/root/vendor/bin/rmt_storage"),
+            ("Staged WPA config", "recovery/root/vendor/etc/wifi/wpa_supplicant.conf"),
+            ("Staged WLAN firmware", "recovery/root/vendor/firmware/wlan/qca_cld"),
+          ]:
+              check(label, exists(rel), f"Expected staged path: {rel}.")
+          loader = text_file(recovery / "system/bin/wlan_setup.sh")
+          check("Loader targets a single selected chipset", "qca_cld3_qca6390.ko" in loader and "qca_cld3_qca6490.ko" not in loader,
+                "Do not automatically load both candidate drivers; verify the actual chipset first.")
+          ro_wrapper = text_file(recovery / "vendor/bin/rmt_storage_ro.sh")
+          check("rmt_storage read-only wrapper exists", bool(ro_wrapper),
+                "Never start vendor rmt_storage directly without verifying its modem NV/EFS write behavior.")
+          check("rmt_storage wrapper requests read-only loops", "losetup -frs" in ro_wrapper,
+                "Wrapper should request read-only loop devices using losetup -r.")
+          check("rmt_storage wrapper verifies read-only devices", '"/sys/class/block/$loop_name/ro"' in ro_wrapper or "'/sys/class/block/$loop_name/ro'" in ro_wrapper,
+                "Wrapper must verify each loop device reports ro=1 before launching rmt_storage.")
+          check("WLAN helper executable bit", os.access(recovery / "system/bin/wlan_setup.sh", os.X_OK),
+                "wlan_setup.sh must be executable in Git.")
+          check("rmt_storage helper executable bit", os.access(recovery / "vendor/bin/rmt_storage_ro.sh", os.X_OK),
+                "rmt_storage_ro.sh must be executable in Git.")
+
+          add()
+          add("## ELF dependency audit")
+          add()
+          add("| Binary | Result | Detail |")
+          add("|---|---|---|")
+          lib_roots = [vendor / "lib64", vendor / "lib", odm / "lib64", odm / "lib"]
+          staged_roots = [recovery / "vendor/lib64", recovery / "vendor/lib", recovery / "vendor/odm/lib64"]
+          binaries = [
+            ("wpa_supplicant", vendor / "bin/hw/wpa_supplicant"),
+            ("cnss-daemon", vendor / "bin/cnss-daemon"),
+            ("rmt_storage", vendor / "bin/rmt_storage"),
+          ]
+          for name, binary in binaries:
+              if not binary.is_file():
+                  check(f"{name} ELF dependencies", False, "Vendor binary is absent; dependency scan skipped.")
+                  continue
+              missing = []
+              queue = [(binary, 0)]
+              seen = set()
+              while queue:
+                  current, depth = queue.pop()
+                  if current in seen or depth > 8:
+                      continue
+                  seen.add(current)
+                  for soname in elf_needed(current):
+                      if soname.startswith(("libc.so","libm.so","libdl.so","liblog.so","libbase.so","libutils.so","libc++.so")):
+                          continue
+                      candidates = [p / soname for p in lib_roots]
+                      source = next((p for p in candidates if p.is_file()), None)
+                      staged = any((p / soname).is_file() for p in staged_roots)
+                      if source is None and not staged:
+                          missing.append(soname)
+                      elif source is not None:
+                          queue.append((source, depth + 1))
+              check(f"{name} ELF dependencies", not missing,
+                    "No unresolved non-platform shared libraries found." if not missing else "Missing libraries: " + ", ".join(sorted(set(missing))))
+
+          add()
+          add("## Kernel module compatibility")
+          add()
+          add("| Check | Result | Detail |")
+          add("|---|---|---|")
+          modules = list(vendor.rglob("*.ko")) + list(odm.rglob("*.ko"))
+          qca = [p for p in modules if "qca_cld3" in p.name]
+          check("QCA CLD3 module candidates discovered", bool(qca),
+                ", ".join(str(p.relative_to(vendor if vendor in p.parents else odm)) for p in qca) if qca else "No qca_cld3 module found in vendor/ODM.")
+          dep = vendor / "lib/modules/modules.dep"
+          if dep.exists():
+              deptext = text_file(dep)
+              for module in qca:
+                  key = module.name
+                  line = next((x for x in deptext.splitlines() if x.startswith(key + ":") or x.endswith("/" + key + ":")), "")
+                  deps = line.split(":",1)[1].strip().split() if line else []
+                  absent = [d for d in deps if not (vendor / "lib/modules" / d).exists()]
+                  check(f"{key} dependency closure", bool(line) and not absent,
+                        "Dependencies recorded and present." if line and not absent else ("No modules.dep entry." if not line else "Missing dependencies: " + ", ".join(absent)))
+          else:
+              check("modules.dep dependency closure", False,
+                    "modules.dep is absent in extracted vendor; module dependencies cannot be validated.")
+          for module in qca:
+              try:
+                  info = subprocess.check_output(["modinfo", "-F", "vermagic", str(module)], text=True, stderr=subprocess.STDOUT).strip()
+                  check(f"{module.name} vermagic", bool(info), info or "modinfo returned empty vermagic.")
+              except Exception as e:
+                  check(f"{module.name} vermagic", False, "modinfo failed: " + str(e))
+          check("Recovery kernel ABI match", False,
+                "Not proven by vendor/ODM images alone. Compare module vermagic and symbol dependencies against the exact kernel used by the recovery build.", "REVIEW")
+
+          add()
+          add("## Missing firmware partition coverage")
+          add()
+          assets = Path("firmware/release-assets.txt").read_text().splitlines()
+          dlkm = [x for x in assets if any(k in x.lower() for k in ["vendor_dlkm","system_dlkm","odm_dlkm"])]
+          check("DLKM images included in firmware release", bool(dlkm),
+                ", ".join(dlkm) if dlkm else "Release does not publish separate vendor_dlkm/system_dlkm/odm_dlkm assets. WLAN modules may be stored there; this audit cannot rule out additional dependencies.", "REVIEW")
+
+          add()
+          add("## Findings summary")
+          add()
+          if findings:
+              for severity, label, detail in findings:
+                  add(f"- **{severity}: {label}** — {detail}")
+          else:
+              add("- No missing static checks detected. Hardware validation is still required.")
+          add()
+          add("## Interpretation")
+          add()
+          add("- **MISSING** means the file or integration check was not found.")
+          add("- **REVIEW** means static analysis cannot establish compatibility; manual kernel/device validation is required.")
+          add("- A passing file-presence check does not establish that the Wi-Fi driver initializes, firmware boots, supplicant scans, or DHCP works.")
+          add("- The Amethyst-specific QCA6750 firmware and ICNSS sysfs controls must not be copied to Pipa without Pipa-specific evidence.")
+          add()
+          Path("reports/PIPA_WLAN_GAP_ANALYSIS.md").write_text("\n".join(report) + "\n")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          summary.write_text("\n".join(report))
+          print(f"Report written. Findings: {len(findings)}")
+          PY
+
+      - name: Upload WLAN gap report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipa-wlan-gap-analysis
+          path: |
+            reports/PIPA_WLAN_GAP_ANALYSIS.md
+            firmware/release-assets.txt
+          if-no-files-found: warn
+
+      - name: Unmount extracted filesystem images
+        if: always()
+        run: |
+          sudo umount analysis/vendor 2>/dev/null || true
+          sudo umount analysis/odm 2>/dev/null || true
