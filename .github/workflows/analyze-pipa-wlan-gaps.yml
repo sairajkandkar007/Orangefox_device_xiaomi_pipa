@@ -44,7 +44,7 @@ jobs:
           REQUESTED_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          mkdir -p reports firmware analysis/vendor analysis/odm
+          mkdir -p reports firmware analysis/vendor analysis/odm analysis/system analysis/system_ext analysis/product analysis/vendor_dlkm analysis/system_dlkm analysis/odm_dlkm analysis/boot analysis/vendor_boot
           printf "# Pipa WLAN gap analysis\n\nFirmware release resolution has not completed. See the workflow log for details.\n" > reports/PIPA_WLAN_GAP_ANALYSIS.md
           REPO="sairajkandkar007/firmware_device_xiaomi_pipa"
           if [ -n "$REQUESTED_TAG" ]; then
@@ -63,33 +63,53 @@ jobs:
           [ -n "$TAG" ] || { echo "::error::Could not resolve a firmware release"; exit 1; }
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "release_url=$(jq -r '.html_url' release.json)" >> "$GITHUB_OUTPUT"
-          for image in vendor_a.img odm_a.img; do
+          # Vendor and ODM are required; other partitions are optional release assets.
+          for image in vendor_a.img odm_a.img boot.img vendor_boot.img system_a.img system_ext_a.img product_a.img vendor_dlkm_a.img system_dlkm_a.img odm_dlkm_a.img; do
             url="$(jq -r --arg n "$image" '.assets[] | select(.name == $n) | .browser_download_url' release.json | head -n1)"
-            [ -n "$url" ] && [ "$url" != "null" ] || { echo "::error::Release $TAG has no $image"; exit 1; }
-            curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$image"
+            if [ -n "$url" ] && [ "$url" != "null" ]; then
+              echo "Downloading $image"
+              curl --fail --location --retry 5 --retry-all-errors "$url" -o "firmware/$image"
+            elif [ "$image" = "vendor_a.img" ] || [ "$image" = "odm_a.img" ]; then
+              echo "::error::Release $TAG has no required $image"; exit 1
+            else
+              echo "Optional partition not published: $image"
+            fi
           done
-          # Record other partition assets. This report must state that DLKM images
-          # were not inspected if the release does not publish them separately.
           jq -r '.assets[].name' release.json > firmware/release-assets.txt
 
-      - name: Extract vendor and ODM filesystems
+      - name: Extract available Android filesystem partitions
         run: |
           set -euo pipefail
-          for part in vendor odm; do
+          for part in vendor odm system system_ext product vendor_dlkm system_dlkm odm_dlkm; do
             image="firmware/${part}_a.img"
-            magic="$(od -An -tx1 -N4 "$image" | tr -d ' \n')"
+            [ -f "$image" ] || continue
+            mkdir -p "analysis/$part"
+            magic="$(od -An -tx1 -N4 "$image" | tr -d ' \\n')"
             if [ "$magic" = "3aff26ed" ]; then
               simg2img "$image" "firmware/${part}_raw.img"
               image="firmware/${part}_raw.img"
             fi
-            desc="$(file -b "$image")"
-            echo "$part: $desc"
-            erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \n' || true)"
+            echo "$part: $(file -b "$image")"
+            erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \\n' || true)"
             if [ "$erofs_magic" = "e0f5e1e2" ]; then
               fsck.erofs --extract="analysis/$part" "$image"
             else
               sudo mount -o loop,ro,noload "$image" "analysis/$part"
-              echo "$PWD/firmware/${part}_a.img" > "analysis/${part}.mounted"
+            fi
+          done
+
+      - name: Inspect boot and vendor_boot images
+        run: |
+          set -euo pipefail
+          for part in boot vendor_boot; do
+            image="firmware/$part.img"
+            [ -f "$image" ] || continue
+            mkdir -p "analysis/$part"
+            file "$image" | tee "analysis/$part/image-type.txt"
+            if command -v unpack_bootimg >/dev/null 2>&1; then
+              unpack_bootimg --boot_img "$image" --out "analysis/$part/unpacked" || true
+            else
+              echo "unpack_bootimg unavailable; only image type was recorded." > "analysis/$part/inspection-limitation.txt"
             fi
           done
 
@@ -107,6 +127,9 @@ jobs:
           root = Path(".")
           vendor = Path("analysis/vendor")
           odm = Path("analysis/odm")
+          partition_names = ["system", "system_ext", "product", "vendor_dlkm", "system_dlkm", "odm_dlkm"]
+          other_parts = {name: Path("analysis") / name for name in partition_names if (Path("analysis") / name).is_dir()}
+          all_fs_roots = [vendor, odm, *other_parts.values()]
           recovery = Path("recovery/root")
           report = []
           findings = []
@@ -144,7 +167,7 @@ jobs:
           add(f"- Firmware release: `{os.environ.get('FIRMWARE_TAG','unknown')}`")
           add(f"- Firmware: {os.environ.get('FIRMWARE_URL','')}")
           add("- Reference implementation: [Amethyst WLAN setup commit](https://github.com/chkndrp/device_xiaomi_amethyst-recovery/commit/d55207095b189045fb1e76008cd88dd0cd4979da)")
-          add("- Scope: Pipa `vendor_a.img` and `odm_a.img`, current recovery tree, init integration, WLAN binaries/configuration/modules and ELF dependencies.")
+          add("- Scope: vendor/ODM plus available boot, vendor_boot, system, system_ext, product and DLKM partitions; current recovery tree; WLAN binaries/configuration/modules and ELF dependencies.")
           add("- This is a static compatibility audit. It does not prove that the driver loads or that Wi-Fi connects on hardware.")
           add()
           add("## Required tree integration")
@@ -230,7 +253,7 @@ jobs:
           add()
           add("| Binary | Result | Detail |")
           add("|---|---|---|")
-          lib_roots = [vendor / "lib64", vendor / "lib", odm / "lib64", odm / "lib"]
+          lib_roots = [part / libdir for part in all_fs_roots for libdir in ("lib64", "lib")]
           staged_roots = [recovery / "vendor/lib64", recovery / "vendor/lib", recovery / "vendor/odm/lib64"]
           binaries = [
             ("wpa_supplicant", vendor / "bin/hw/wpa_supplicant"),
@@ -262,6 +285,19 @@ jobs:
               check(f"{name} ELF dependencies", not missing,
                     "No unresolved non-platform shared libraries found." if not missing else "Missing libraries: " + ", ".join(sorted(set(missing))))
 
+          add()
+          add("## Cross-partition WLAN inventory")
+          add()
+          add("| Partition | WLAN-related files found |")
+          add("|---|---|")
+          wlan_pattern = re.compile(r"(wlan|wifi|qca|cnss|icnss|supplicant|hostapd|\\.ko$)", re.I)
+          for part_name, part_root in [("vendor", vendor), ("odm", odm), *other_parts.items()]:
+              matches = [str(p.relative_to(part_root)) for p in part_root.rglob("*") if p.is_file() and wlan_pattern.search(p.name)]
+              add(f"| {part_name} | " + (", ".join(matches[:100]) if matches else "No filename matches") + " |")
+          for part_name in ("boot", "vendor_boot"):
+              p = Path("analysis") / part_name
+              if p.exists():
+                  add(f"- `{part_name}.img`: " + ("unpacked with unpack_bootimg when available." if (p / "unpacked").exists() else "image type recorded; ramdisk/kernel not unpacked."))
           add()
           add("## Kernel module compatibility")
           add()
@@ -315,7 +351,7 @@ jobs:
           add("- **MISSING** means the file or integration check was not found.")
           add("- **REVIEW** means static analysis cannot establish compatibility; manual kernel/device validation is required.")
           add("- A passing file-presence check does not establish that the Wi-Fi driver initializes, firmware boots, supplicant scans, or DHCP works.")
-          add("- The Amethyst-specific QCA6750 firmware and ICNSS sysfs controls must not be copied to Pipa without Pipa-specific evidence.")
+          add("- Files found in system/product partitions are dependency evidence only; their presence does not automatically make them suitable for staging into recovery.")
           add()
           Path("reports/PIPA_WLAN_GAP_ANALYSIS.md").write_text("\n".join(report) + "\n")
           summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
@@ -331,10 +367,11 @@ jobs:
           path: |
             reports/PIPA_WLAN_GAP_ANALYSIS.md
             firmware/release-assets.txt
+            analysis/boot/**
+            analysis/vendor_boot/**
           if-no-files-found: warn
 
       - name: Unmount extracted filesystem images
         if: always()
         run: |
-          sudo umount analysis/vendor 2>/dev/null || true
-          sudo umount analysis/odm 2>/dev/null || true
+          for part in vendor odm system system_ext product vendor_dlkm system_dlkm odm_dlkm; do sudo umount "analysis/$part" 2>/dev/null || true; done
