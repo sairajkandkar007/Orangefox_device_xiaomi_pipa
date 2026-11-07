@@ -43,7 +43,7 @@ on:
       LDCHECK:
         description: 'Path of blobs to check'
         required: true
-        default: 'system/bin/qseecomd'
+        default: 'vendor/bin/qseecomd'
       RECOVERY_TAR:
         description: 'Release recovery.tar For Samsung devices'
         required: false
@@ -68,7 +68,7 @@ jobs:
       DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH || 'device/xiaomi/pipa' }}
       DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME || 'pipa' }}
       BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET || 'boot' }}
-      LDCHECK: ${{ github.event.inputs.LDCHECK || 'system/bin/qseecomd' }}
+      LDCHECK: ${{ github.event.inputs.LDCHECK || 'vendor/bin/qseecomd' }}
       RECOVERY_TAR: ${{ github.event.inputs.RECOVERY_TAR || 'false' }}
       RECOVERY_INSTALLER: ${{ github.event.inputs.RECOVERY_INSTALLER || 'false' }}
     permissions:
@@ -235,11 +235,12 @@ jobs:
           MD5 (img): ${{ env.MD5_IMG }}
 
     - name: Run LDCheck
+      if: env.CHECK_IMG_IS_OK == 'true'
       run: |
-        cd tools
-        mv -n libneeds ${{ env.FILE_PATH }}/recovery/root/
-        mv -n ldcheck ${{ env.FILE_PATH }}/recovery/root/
-        cd ${{ env.FILE_PATH }}/recovery/root/
-        python3 ldcheck -p system/lib64:vendor/lib64:system/lib:vendor/lib -d ${{ env.LDCHECK }}
-        echo "Done checking missing dependencies. Review, and reconfigure your tree."
+        set -e
+        curl -fsSL https://raw.githubusercontent.com/kinguser981/OrangeFox-Recovery-Builder-2024/OrangeFox/tools/ldcheck -o "${RUNNER_TEMP}/ldcheck"
+        chmod +x "${RUNNER_TEMP}/ldcheck"
+        cd "${{ env.FILE_PATH }}/recovery/root"
+        python3 "${RUNNER_TEMP}/ldcheck" -p system/lib64:vendor/lib64:system/lib:vendor/lib "${{ env.LDCHECK }}"
+        echo "LDCheck completed for ${{ env.LDCHECK }}."
       continue-on-error: true
