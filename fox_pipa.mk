@@ -6,7 +6,6 @@ PRODUCT_RELEASE_NAME := pipa
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
 $(call inherit-product, device/xiaomi/pipa/device.mk)
 $(call inherit-product, vendor/fox/config/common.mk)
 
