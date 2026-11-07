@@ -5,11 +5,10 @@
 on property:twrp.firmware.mounted=true && property:ro.twrp.fastbootd=0
     start wlan_setup
 
-# The WLAN driver is loaded by wlan_setup.sh. Protect modem NV/EFS before
-# starting rmt_storage: the unmodified vendor daemon can write these partitions.
+# Never auto-start vendor rmt_storage from recovery. It can write modem NV/EFS.
+# The read-only wrapper is intentionally not started as part of WLAN bring-up.
 on property:twrp.wlan.drivers.loaded=true
-    write /dev/kmsg "[PIPA-WLAN] WLAN modules loaded; starting Qualcomm support services"
-    start vendor.rmt_storage
+    write /dev/kmsg "[PIPA-WLAN] WLAN module load completed; modem NV/EFS services remain stopped"
 
 # The vendor CNSS daemon expects /data to be available.
 on post-fs-data
