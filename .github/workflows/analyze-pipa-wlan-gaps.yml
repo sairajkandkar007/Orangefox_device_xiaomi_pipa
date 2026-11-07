@@ -36,7 +36,7 @@ jobs:
       - name: Install firmware analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio aria2 jq
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio aria2 jq binwalk p7zip-full
 
       - name: Set up Go for LP tools
         uses: actions/setup-go@v5
@@ -231,6 +231,83 @@ jobs:
             fi
           done
 
+      - name: Extract and inspect modem firmware partition read-only
+        id: modem
+        run: |
+          set -euo pipefail
+          mkdir -p analysis/modem/images analysis/modem/extracted analysis/modem/binwalk
+          : > analysis/modem/modem-image-candidates.txt
+          : > analysis/modem/modem-extraction.log
+
+          # Search the original fastboot archive and the flattened image directory.
+          # Deliberately exclude modemst*, fsg, persist and other NV/EFS partitions.
+          while IFS= read -r -d '' image; do
+            base="$(basename "$image")"
+            lower="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')"
+            case "$lower" in
+              modem.img|modem_a.img|modem_b.img|non-hlos.bin|non-hlos.img)
+                dest="analysis/modem/images/$base"
+                if [ ! -e "$dest" ]; then cp --reflink=auto "$image" "$dest"; fi
+                ;;
+            esac
+          done < <(find firmware firmware/xiaomi_fastboot_rom -type f \( -iname 'modem.img' -o -iname 'modem_a.img' -o -iname 'modem_b.img' -o -iname 'non-hlos.bin' -o -iname 'non-hlos.img' \) -print0 2>/dev/null | sort -zu)
+
+          shopt -s nullglob
+          candidates=(analysis/modem/images/*)
+          if [ "${#candidates[@]}" -eq 0 ]; then
+            echo "No modem.img/modem_a.img/modem_b.img/NON-HLOS image found in this fastboot package." | tee -a analysis/modem/modem-extraction.log
+          fi
+
+          for source in "${candidates[@]}"; do
+            base="$(basename "$source")"
+            echo "===== $base =====" | tee -a analysis/modem/modem-extraction.log
+            file "$source" | tee -a analysis/modem/modem-extraction.log
+            sha256sum "$source" | tee -a analysis/modem/modem-extraction.log
+            image="$source"
+
+            sparse_magic="$(od -An -tx1 -N4 "$image" | tr -d ' \n')"
+            if [ "$sparse_magic" = "3aff26ed" ]; then
+              raw="analysis/modem/images/${base%.*}_raw.img"
+              echo "Android sparse image detected; converting to raw: $raw" | tee -a analysis/modem/modem-extraction.log
+              simg2img "$image" "$raw"
+              image="$raw"
+              file "$image" | tee -a analysis/modem/modem-extraction.log
+            fi
+
+            out="analysis/modem/extracted/${base%.*}"
+            mkdir -p "$out"
+            erofs_magic="$(od -An -tx4 -j1024 -N4 "$image" 2>/dev/null | tr -d ' \n' || true)"
+            if [ "$erofs_magic" = "e0f5e1e2" ]; then
+              echo "EROFS filesystem detected; extracting without mounting." | tee -a analysis/modem/modem-extraction.log
+              if ! fsck.erofs --extract="$out" "$image" >> analysis/modem/modem-extraction.log 2>&1; then
+                echo "EROFS extraction failed for $base" | tee -a analysis/modem/modem-extraction.log
+              fi
+            elif file "$image" | grep -Eqi 'ext[234] filesystem'; then
+              echo "ext filesystem detected; mounting read-only with noload." | tee -a analysis/modem/modem-extraction.log
+              mountpoint="$out.mount"
+              mkdir -p "$mountpoint"
+              if sudo mount -o loop,ro,noload "$image" "$mountpoint"; then
+                sudo cp -a "$mountpoint/." "$out/"
+                sudo umount "$mountpoint"
+                rmdir "$mountpoint" 2>/dev/null || true
+              else
+                echo "Read-only ext mount failed for $base" | tee -a analysis/modem/modem-extraction.log
+              fi
+            else
+              rmdir "$out" 2>/dev/null || true
+              echo "No top-level EROFS/ext filesystem detected; running signature scan only." | tee -a analysis/modem/modem-extraction.log
+              scan_dir="analysis/modem/binwalk/${base%.*}"
+              mkdir -p "$scan_dir"
+              # Extraction is confined to the GitHub runner and the modem image.
+              # No modemst/fsg/NV partition is passed to binwalk.
+              binwalk -eM --directory "$scan_dir" "$image" >> analysis/modem/modem-extraction.log 2>&1 || true
+            fi
+          done
+
+          find analysis/modem -maxdepth 4 -type f -printf '%p\t%s bytes\n' | sort > analysis/modem/modem-file-list.txt
+          echo "Modem image candidates: $(find analysis/modem/images -maxdepth 1 -type f | wc -l)"
+          echo "Extracted modem files: $(find analysis/modem/extracted analysis/modem/binwalk -type f 2>/dev/null | wc -l)"
+
       - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
           set -euo pipefail
@@ -299,6 +376,7 @@ jobs:
               Path("analysis/product"), Path("analysis/vendor_dlkm"),
               Path("analysis/system_dlkm"), Path("analysis/odm_dlkm"),
               Path("analysis/boot/unpacked"), Path("analysis/vendor_boot/unpacked"),
+              Path("analysis/modem/extracted"), Path("analysis/modem/binwalk"),
           ]
           found = {n: [] for n in sorted(wanted)}
           extra_board = []
@@ -331,7 +409,9 @@ jobs:
               "# Pipa WLAN stock-ROM file inventory", "",
               "- Source: official Xiaomi Pipa fastboot ROM extracted by this workflow.",
               "- This report records paths, sizes and SHA-256 only; proprietary firmware binaries are not copied into Git.",
-              "- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk roots scanned below.",
+              "- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk/modem roots scanned below.",
+              "- Modem extraction is read-only. The workflow only examines modem.img/modem_a.img/modem_b.img/NON-HLOS images; it never processes modemst*, fsg, persist or NV/EFS partitions.",
+              "- If the modem image is a proprietary raw container rather than EROFS/ext, binwalk signature extraction is attempted in the isolated runner; absence from the inventory is not proof that the firmware is absent from the device's mounted modem filesystem.",
               "",
               "## Scanned extraction roots", "",
           ]
@@ -697,3 +777,4 @@ jobs:
         if: always()
         run: |
           for part in vendor odm system system_ext product vendor_dlkm system_dlkm odm_dlkm; do sudo umount "analysis/$part" 2>/dev/null || true; done
+          find analysis/modem -type d -name '*.mount' -print0 2>/dev/null | while IFS= read -r -d '' m; do sudo umount "$m" 2>/dev/null || true; done
