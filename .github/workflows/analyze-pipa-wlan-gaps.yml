@@ -16,6 +16,7 @@ on:
       - "recovery/root/**"
       - ".github/workflows/analyze-pipa-wlan-gaps.yml"
       - "scripts/rea_modem_analysis.sh"
+      - "scripts/stage_pipa_qca6390_firmware.sh"
 
 permissions:
   contents: write
@@ -332,6 +333,18 @@ jobs:
           set -euo pipefail
           chmod +x scripts/rea_modem_analysis.sh
           scripts/rea_modem_analysis.sh
+      - name: Stage extracted QCA6390 firmware for recovery audit
+        id: stage_qca6390
+        run: |
+          set -euo pipefail
+          chmod +x scripts/stage_pipa_qca6390_firmware.sh
+          scripts/stage_pipa_qca6390_firmware.sh \
+            analysis/modem/extracted/NON-HLOS/image/qca6390 \
+            analysis/recovery-firmware-stage/vendor/firmware/wlan/qca_cld/qca6390 \
+            recovery/root/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini \
+            reports/PIPA_QCA6390_FIRMWARE_STAGING.md
+          echo "QCA6390 firmware staged in an isolated CI output directory; no proprietary modem blobs will be committed."
+
       - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
           set -euo pipefail
@@ -736,6 +749,16 @@ jobs:
           add()
           add("| Check | Result | Detail |")
           add("|---|---|---|")
+          ci_qca_fw = Path("analysis/recovery-firmware-stage/vendor/firmware/wlan/qca_cld/qca6390")
+          ci_fw_names = {p.name for p in ci_qca_fw.glob("*") if p.is_file()} if ci_qca_fw.is_dir() else set()
+          check("CI QCA6390 firmware payload staged",
+                {"amss20.bin", "m3.bin", "bdwlan.elf", "regdb.bin", "WCNSS_qcom_cfg.ini"}.issubset(ci_fw_names),
+                "Verified payload and config files in analysis/recovery-firmware-stage; board-data variants are retained without guessing the active board ID.")
+          check("QCA6390 board-data variants staged",
+                any(n.startswith("bd_") and n.endswith(".elf") for n in ci_fw_names) and any(n.startswith("bdwlan.e") for n in ci_fw_names),
+                "All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection.")
+          check("QCA6390 wlan_mac.bin available", "wlan_mac.bin" in ci_fw_names,
+                "The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it.", "REVIEW")
           for label, rel in [
             ("Staged WLAN module directory", "recovery/root/vendor/lib/modules"),
             ("Staged vendor supplicant", "recovery/root/vendor/bin/hw/wpa_supplicant"),
@@ -896,6 +919,7 @@ jobs:
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
           if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
           if [ -f reports/PIPA_MODEM_REA_ANALYSIS.md ]; then git add -f reports/PIPA_MODEM_REA_ANALYSIS.md; fi
+          if [ -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md ]; then git add -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md; fi
           if [ -d analysis/modem/rea ]; then
             find analysis/modem/rea -maxdepth 1 -type f \( -name "*.json" -o -name "tool-versions.txt" \) -print0 | xargs -0 -r git add -f
             find analysis/modem/rea/regions analysis/modem/rea/unblob analysis/modem/rea/logs -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r git add -f
