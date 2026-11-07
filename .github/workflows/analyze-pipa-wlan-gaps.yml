@@ -514,6 +514,16 @@ jobs:
           [ -n "$CFG" ] || { echo "::error::Stock QCA6390 WCNSS_qcom_cfg.ini was not found"; exit 1; }
           install -m 0644 "$CFG" "$DST/WCNSS_qcom_cfg.ini"
 
+          # The stock CNSS daemon is the matching userspace companion for the
+          # Qualcomm WLAN stack. Its dependency audit passed in the stock ROM.
+          CNSS=""
+          for root in analysis/partitions/vendor analysis/standalone/vendor analysis/vendor; do
+            [ -d "$root" ] || continue
+            [ -f "$root/bin/cnss-daemon" ] && { CNSS="$root/bin/cnss-daemon"; break; }
+          done
+          [ -n "$CNSS" ] || { echo "::error::Stock vendor cnss-daemon was not found"; exit 1; }
+          install -D -m 0755 "$CNSS" recovery/root/vendor/bin/cnss-daemon
+
           for required in amss20.bin m3.bin bdwlan.elf regdb.bin WCNSS_qcom_cfg.ini; do
             [ -s "$DST/$required" ] || { echo "::error::Missing required QCA6390 payload: $required"; exit 1; }
           done
@@ -850,6 +860,7 @@ jobs:
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
           git add -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md 2>/dev/null || true
           git add -f recovery/root/vendor/firmware/wlan/qca_cld/qca6390/ 2>/dev/null || true
+          git add -f recovery/root/vendor/bin/cnss-daemon 2>/dev/null || true
           git add -f stock-rom-wlan/ 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
