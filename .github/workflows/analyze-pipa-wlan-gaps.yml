@@ -896,7 +896,7 @@ jobs:
           if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
           if [ -f reports/PIPA_MODEM_REA_ANALYSIS.md ]; then git add -f reports/PIPA_MODEM_REA_ANALYSIS.md; fi
           if [ -d analysis/modem/rea ]; then
-            find analysis/modem/rea -maxdepth 1 -type f \\( -name "*.json" -o -name "tool-versions.txt" \\) -print0 | xargs -0 -r git add -f
+            find analysis/modem/rea -maxdepth 1 -type f \( -name "*.json" -o -name "tool-versions.txt" \) -print0 | xargs -0 -r git add -f
             find analysis/modem/rea/regions analysis/modem/rea/unblob analysis/modem/rea/logs -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r git add -f
           fi
           git add -f recovery/root/vendor recovery/root/system recovery/root/odm 2>/dev/null || true
@@ -906,9 +906,9 @@ jobs:
             firmware/release-assets.txt \
             firmware/rom-image-list.txt \
             analysis/rom-image-inventory.txt \
-            analysis/super-partition-inventory.txt \\
-            analysis/modem/modem-extraction.log \\
-            analysis/modem/modem-file-list.txt \\
+            analysis/super-partition-inventory.txt \
+            analysis/modem/modem-extraction.log \
+            analysis/modem/modem-file-list.txt \
             analysis/modem/rea-file-list.txt; do
             if [ -f "$output" ]; then git add -f "$output"; fi
           done
