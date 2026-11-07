@@ -112,10 +112,13 @@ PLATFORM_VERSION := 13
 PLATFORM_VERSION_LAST_STABLE := $(PLATFORM_VERSION)
 TARGET_RECOVERY_DEVICE_API_LEVEL := 33
 
-# WLAN — Pipa vendor provides Qualcomm QCA CLD3 candidates.
-# Module loading remains gated on matching vermagic/dependencies to the recovery kernel.
+# WLAN — Pipa QCA6390 CLD3 recovery driver.
+# Driver and stock module metadata are staged in recovery/root/vendor/lib/modules.
 BOARD_WLAN_DEVICE := qcwcn
 WIFI_DRIVER_DEFAULT := qca_cld3
+WIFI_DRIVER_MODULE_PATH := /vendor/lib/modules/qca_cld3_qca6390.ko
+WIFI_DRIVER_MODULE_NAME := qca_cld3_qca6390
+WIFI_DRIVER_MODULE_ARG :=
 WIFI_DRIVER_STATE_CTRL_PARAM := "/dev/wlan"
 WIFI_DRIVER_STATE_OFF := "OFF"
 WIFI_DRIVER_STATE_ON := "ON"
