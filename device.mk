@@ -30,9 +30,11 @@ PRODUCT_SOONG_NAMESPACES += \
     $(LOCAL_PATH)
 
 # Copy the complete device recovery ramdisk overlay.
-# This stages Pipa WLAN init, binaries, firmware and QCA6390 module metadata.
-PRODUCT_COPY_FILES += \
-    $(call find-copy-subdir-files,*, $(LOCAL_PATH)/recovery/root, recovery/root)
+# Use explicit source:destination pairs; find-copy-subdir-files can expand to
+# source-only entries on some OrangeFox/Android build branches, which makes
+# PRODUCT_COPY_FILES reject the product during dumpvars.
+PIPA_RECOVERY_ROOT := $(LOCAL_PATH)/recovery/root
+PRODUCT_COPY_FILES += $(foreach f,$(shell find $(PIPA_RECOVERY_ROOT) -type f),$(f):recovery/root/$(patsubst $(PIPA_RECOVERY_ROOT)/%,%,$(f)))
 
 # Recovery Wi-Fi userspace support (OrangeFox 14.1).
 TW_INCLUDE_WIFI := true
