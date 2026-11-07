@@ -408,7 +408,7 @@ jobs:
           lines = [
               "# Pipa WLAN stock-ROM file inventory", "",
               "- Source: official Xiaomi Pipa fastboot ROM extracted by this workflow.",
-              "- This report records paths, sizes and SHA-256 only; proprietary firmware binaries are not copied into Git.",
+              "- This report records paths, sizes and SHA-256. A separate staging step copies allowlisted WLAN assets from extracted vendor/system/odm partitions into the recovery tree.",
               "- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk/modem roots scanned below.",
               "- Modem extraction is read-only. The workflow only examines modem.img/modem_a.img/modem_b.img/NON-HLOS images; it never processes modemst*, fsg, persist or NV/EFS partitions.",
               "- If the modem image is a proprietary raw container rather than EROFS/ext, binwalk signature extraction is attempted in the isolated runner; absence from the inventory is not proof that the firmware is absent from the device's mounted modem filesystem.",
@@ -458,13 +458,119 @@ jobs:
           lines += [
               "", "## Handling",
               "",
-              "The workflow intentionally does not commit extracted Xiaomi binaries or firmware. Use the reported paths and hashes to verify the stock-ROM source and stage only files that are licensed and appropriate for the recovery project.",
+              "The workflow stages allowlisted WLAN modules/assets from extracted vendor/system/odm partitions into recovery/root and commits them with the audit reports. It does not copy the complete ROM, modem image, NV/EFS partitions, or rmt_storage executable.",
               ""
           ]
           out.write_text("\n".join(lines))
           found_count = sum(bool(v) for v in found.values())
           print(f"Requested unique filenames found: {found_count}/{len(wanted)}")
           print(f"Inventory written: {out}")
+          PY
+
+      - name: Stage verified WLAN modules and assets from stock partitions
+        id: stage_wlan
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import shutil
+          from pathlib import Path
+
+          names = ("vendor", "odm", "system")
+          roots = {}
+          for name in names:
+              candidates = (
+                  Path("analysis/partitions") / name,
+                  Path("analysis/standalone") / name,
+                  Path("analysis") / name,
+              )
+              root = next((p for p in candidates if p.is_dir() and any(p.iterdir())), None)
+              if root:
+                  roots[name] = root
+
+          dest_root = Path("recovery/root")
+          copied = []
+          skipped = []
+          seen = set()
+
+          def wanted_file(partition, p):
+              n = p.name.lower()
+              rel = p.relative_to(roots[partition]).as_posix().lower()
+
+              # QCA6390 is the target chipset; do not stage QCA6490.
+              if n == "qca_cld3_qca6390.ko":
+                  return True
+              if n.endswith(".ko") and any(x in n for x in ("wlan", "cnss", "qca6390")):
+                  return True
+
+              if n in {"amss20.bin", "m3.bin", "wlan_mac.bin", "regdb.bin", "regdb_j11.bin",
+                       "wcnss_qcom_cfg.ini"}:
+                  return True
+              if n.startswith("bd_") and n.endswith(".elf"):
+                  return True
+              if n.startswith("bdwlan.") or n == "bdwlan.elf":
+                  return True
+
+              # rmt_storage is excluded because it may access modem NV/EFS.
+              if n in {"cnss-daemon", "wpa_supplicant", "hostapd", "libwifi-hal.so",
+                       "wpa_supplicant.conf", "wpa_supplicant_overlay.conf"}:
+                  return True
+              if n.startswith("android.hardware.wifi.supplicant@") and n.endswith(".so"):
+                  return True
+              if n == "libdl_android.so" and "/bootstrap/" in "/" + rel:
+                  return True
+              if n.endswith(".rc") and any(x in n for x in ("cnss", "wlan", "supplicant")):
+                  return True
+              return False
+
+          for partition, root in roots.items():
+              for src in root.rglob("*"):
+                  if not src.is_file() or not wanted_file(partition, src):
+                      continue
+                  try:
+                      resolved = src.resolve()
+                      if resolved in seen:
+                          continue
+                      seen.add(resolved)
+                      rel = src.relative_to(root)
+                      dst = dest_root / partition / rel
+                      size = src.stat().st_size
+                      if size > 50 * 1024 * 1024:
+                          skipped.append((src, "over 50 MiB safety limit"))
+                          continue
+                      dst.parent.mkdir(parents=True, exist_ok=True)
+                      shutil.copy2(src, dst)
+                      digest = hashlib.sha256(dst.read_bytes()).hexdigest()
+                      copied.append((partition, str(rel), str(dst), size, digest))
+                  except (OSError, PermissionError) as exc:
+                      skipped.append((src, str(exc)))
+
+          report = Path("reports/PIPA_WLAN_STAGED_ASSETS.md")
+          lines = [
+              "# Pipa WLAN assets staged from stock partitions", "",
+              "Source: extracted official Xiaomi Pipa fastboot ROM partitions (vendor, system, odm).",
+              "Only matching WLAN modules, firmware/board-data files, WLAN daemons/configuration and directly relevant libraries are copied.",
+              "The QCA6390 module is selected for this device; the QCA6490 alternative is not staged.",
+              "rmt_storage is deliberately excluded because its modem NV/EFS write behavior requires separate safety validation.",
+              "Each copied file is listed with its source, destination, size and SHA-256.", "",
+              "| Partition | Source-relative path | Recovery destination | Bytes | SHA-256 |",
+              "|---|---|---|---:|---|",
+          ]
+          for part, rel, dst, size, digest in sorted(copied):
+              lines.append(f"| {part} | {rel} | {dst} | {size} | {digest} |")
+          if not copied:
+              lines.append("| — | No matching assets found in extracted vendor/system/odm roots | — | — | — |")
+          lines += ["", "## Skipped files", ""]
+          if skipped:
+              lines.extend(f"- {p} — {reason}" for p, reason in skipped)
+          else:
+              lines.append("- None")
+          lines += ["", f"Total copied: {len(copied)} files", ""]
+          report.parent.mkdir(parents=True, exist_ok=True)
+          report.write_text("\n".join(lines))
+          print(f"Staged {len(copied)} verified WLAN assets.")
+          if not roots:
+              raise SystemExit("No extracted vendor/system/odm partition roots were available.")
           PY
 
       - name: Compare recovery tree with Pipa vendor WLAN stack
@@ -760,10 +866,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Commit only human-readable audit outputs and provenance metadata.
-          # Never commit the downloaded ROM, partition images, or extracted
-          # Android filesystem trees: those are large firmware binaries.
+          # Commit the staged, allowlisted WLAN recovery assets plus reports.
+          # Never commit the downloaded ROM, partition images, full extracted
+          # Android filesystem trees, modem NV/EFS data, or rmt_storage.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
+          if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
+          git add -f recovery/root/vendor recovery/root/system recovery/root/odm 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
             firmware/source.txt \
