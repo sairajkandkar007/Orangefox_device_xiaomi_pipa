@@ -151,7 +151,7 @@ jobs:
         export FOX_BUILD_DEVICE=pipa
 
         set +e
-        lunch twrp_pipa-eng
+        lunch twrp_pipa-ap2a-eng
         LUNCH_STATUS=$?
         set -e
         if [ "${LUNCH_STATUS}" -ne 0 ]; then
