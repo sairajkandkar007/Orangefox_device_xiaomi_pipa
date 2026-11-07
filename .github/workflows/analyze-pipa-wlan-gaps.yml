@@ -415,6 +415,15 @@ jobs:
               "",
               "## Scanned extraction roots", "",
           ]
+          modem_log = Path("analysis/modem/modem-extraction.log")
+          modem_list = Path("analysis/modem/modem-file-list.txt")
+          lines += ["", "## Modem partition extraction details", ""]
+          if modem_log.exists():
+              lines += ["```text", modem_log.read_text(errors="replace").strip() or "No modem extraction log output.", "```", ""]
+          else:
+              lines += ["No modem extraction log was generated.", ""]
+          if modem_list.exists() and modem_list.stat().st_size:
+              lines += ["### Modem image and extraction files", "", "```text", modem_list.read_text(errors="replace").strip(), "```", ""]
           lines.extend(f"- `{r}`" for r in scanned_roots)
           lines += ["", "## Requested files", "",
                     "| Filename | Status | Stock-ROM path | Size | SHA-256 |",
