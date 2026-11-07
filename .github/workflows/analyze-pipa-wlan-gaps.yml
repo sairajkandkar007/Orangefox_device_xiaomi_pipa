@@ -694,7 +694,7 @@ jobs:
           ci_fw_names = {p.name for p in ci_qca_fw.glob("*") if p.is_file()} if ci_qca_fw.is_dir() else set()
           check("CI QCA6390 firmware payload staged",
                 {"amss20.bin", "m3.bin", "bdwlan.elf", "regdb.bin", "WCNSS_qcom_cfg.ini"}.issubset(ci_fw_names),
-                "Verified payload and config files in analysis/recovery-firmware-stage; board-data variants are retained without guessing the active board ID.")
+                "Verified payload and config files in recovery/root/vendor/firmware/wlan/qca_cld/qca6390; board-data variants are retained without guessing the active board ID.")
           check("QCA6390 board-data variants staged",
                 any(n.startswith("bd_") and n.endswith(".elf") for n in ci_fw_names) and any(n.startswith("bdwlan.e") for n in ci_fw_names),
                 "All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection.")
