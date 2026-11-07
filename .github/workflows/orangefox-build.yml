@@ -1,6 +1,9 @@
 name: OrangeFox - Build
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
@@ -56,9 +59,18 @@ jobs:
   build:
     name: Build OFRP by ${{ github.actor }}
     runs-on: ubuntu-latest
-    if: github.event.repository.owner.id == github.event.sender.id
+    if: github.event_name == 'push' || github.event.repository.owner.id == github.event.sender.id
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MANIFEST_BRANCH: ${{ github.event.inputs.MANIFEST_BRANCH || '14.1' }}
+      DEVICE_TREE: ${{ github.event.inputs.DEVICE_TREE || 'https://github.com/sairajkandkar007/orangefox_device_xiaomi_pipa' }}
+      DEVICE_TREE_BRANCH: ${{ github.event.inputs.DEVICE_TREE_BRANCH || 'main' }}
+      DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH || 'device/xiaomi/pipa' }}
+      DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME || 'pipa' }}
+      BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET || 'boot' }}
+      LDCHECK: ${{ github.event.inputs.LDCHECK || 'system/bin/qseecomd' }}
+      RECOVERY_TAR: ${{ github.event.inputs.RECOVERY_TAR || 'false' }}
+      RECOVERY_INSTALLER: ${{ github.event.inputs.RECOVERY_INSTALLER || 'true' }}
     permissions:
       contents: write
     steps:
@@ -69,8 +81,8 @@ jobs:
       run: |
         echo "::group::User Environment Variables"
         echo "Displaying variables/inputs."
-        echo "Include Recovery Installer: ${{ github.event.inputs.RECOVERY_INSTALLER }}"
-        echo "Release recovery.tar For Samsung devices: ${{ github.event.inputs.RECOVERY_TAR }}"
+        echo "Include Recovery Installer: ${{ env.RECOVERY_INSTALLER }}"
+        echo "Release recovery.tar For Samsung devices: ${{ env.RECOVERY_TAR }}"
         echo "::endgroup::"
 
     - name: Clean-up
@@ -90,7 +102,7 @@ jobs:
         sudo bash setup/android_build_env.sh
 
     - name: Set-up Manifest (shallow sync)
-      if: github.event.inputs.MANIFEST_BRANCH == '11.0' || github.event.inputs.MANIFEST_BRANCH == '12.1' || github.event.inputs.MANIFEST_BRANCH == '14.1'
+      if: env.MANIFEST_BRANCH == '11.0' || env.MANIFEST_BRANCH == '12.1' || env.MANIFEST_BRANCH == '14.1'
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
         cd ${GITHUB_WORKSPACE}/OrangeFox
@@ -108,27 +120,27 @@ jobs:
         sed -i -E '/^[[:space:]]*#/! s/(repo[[:space:]]+init)([[:space:]]|$)/\1 --depth=1 --current-branch --no-tags\2/g' orangefox_sync.sh
         sed -i -E '/^[[:space:]]*#/! s/(repo[[:space:]]+sync)([[:space:]]|$)/\1 -c\2/g' orangefox_sync.sh
 
-        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        ./orangefox_sync.sh --branch ${{ env.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
 
     - name: Clone Device Tree
       run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        mkdir -p "$(dirname "${{ github.event.inputs.DEVICE_PATH }}")"
-        git clone --depth=1 --single-branch -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ${{ github.event.inputs.DEVICE_TREE }} ${{ github.event.inputs.DEVICE_PATH }}
-        cd ${{ github.event.inputs.DEVICE_PATH }}
+        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
+        mkdir -p "$(dirname "${{ env.DEVICE_PATH }}")"
+        git clone --depth=1 --single-branch -b ${{ env.DEVICE_TREE_BRANCH }} ${{ env.DEVICE_TREE }} ${{ env.DEVICE_PATH }}
+        cd ${{ env.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
     - name: Check Manifest Branch
       uses: haya14busa/action-cond@v1
       id: fox_branch
       with:
-        cond: ${{ github.event.inputs.MANIFEST_BRANCH == '14.1' }}
-        if_true: lunch fox_pipa-ap2a-eng && make clean && mka adbd ${{ github.event.inputs.BUILD_TARGET }}image
-        if_false: lunch twrp_pipa-eng && make clean && mka adbd ${{ github.event.inputs.BUILD_TARGET }}image
+        cond: ${{ env.MANIFEST_BRANCH == '14.1' }}
+        if_true: lunch fox_pipa-ap2a-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
+        if_false: lunch twrp_pipa-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
 
     - name: Building OrangeFox
       run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
         set +e
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
@@ -140,7 +152,7 @@ jobs:
     - name: Set Build Date # Output will be use in Release
       run: |
         echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
-        DEVICE_TREE_URL="${{ github.event.inputs.DEVICE_TREE }}"
+        DEVICE_TREE_URL="${{ env.DEVICE_TREE }}"
         if [[ "${DEVICE_TREE_URL}" == *.git ]]; then
             DEVICE_TREE_URL="${DEVICE_TREE_URL%.git}"
         fi
@@ -148,15 +160,15 @@ jobs:
 
     - name: Check if Recovery Exist
       run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        if [ -f out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img ]; then
+        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
+        if [ -f out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img ]; then
             echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
-            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-        elif [ -f out/target/product/${{ github.event.inputs.DEVICE_NAME }}/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img ]; then
+            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}" >> $GITHUB_ENV
+            echo "MD5_IMG=$(md5sum out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
+        elif [ -f out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img ]; then
             echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
-            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/target/product/${{ github.event.inputs.DEVICE_NAME }}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum out/target/product/${{ github.event.inputs.DEVICE_NAME }}/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
+            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}" >> $GITHUB_ENV
+            echo "MD5_IMG=$(md5sum out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
         else
             echo "Recovery out directory is empty."
             exit 1
@@ -165,15 +177,15 @@ jobs:
     - name: Rename the Recovery
       run: |
         cd ${{ env.FILE_PATH }}/
-        if [ "${{ github.event.inputs.BUILD_TARGET }}" = "boot" ]; then
+        if [ "${{ env.BUILD_TARGET }}" = "boot" ]; then
           mv OrangeFox*.img boot.img
           echo "RECOVERY_TYPE=boot" >> $GITHUB_ENV
           echo "boot.img file found!"
-        elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "recovery" ]; then
+        elif [ "${{ env.BUILD_TARGET }}" = "recovery" ]; then
           mv OrangeFox*.img recovery.img
           echo "RECOVERY_TYPE=recovery" >> $GITHUB_ENV
           echo "recovery.img file found!"
-        elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "vendorboot" ]; then
+        elif [ "${{ env.BUILD_TARGET }}" = "vendorboot" ]; then
           mv OrangeFox*.img vendor_boot.img
           echo "RECOVERY_TYPE=vendor_boot" >> $GITHUB_ENV
           echo "vendor_boot.img file found!"
@@ -183,7 +195,7 @@ jobs:
         fi
 
     - name: Include Recovery Installer
-      if: github.event.inputs.RECOVERY_INSTALLER == 'true'
+      if: env.RECOVERY_INSTALLER == 'true'
       run: |
         cd ${{ env.FILE_PATH }}/
         wget https://github.com/kinguser981/recovery-installer/releases/download/11256427880/recovery-installer.zip
@@ -191,7 +203,7 @@ jobs:
       continue-on-error: true
 
     - name: Recovery to tar for Samsung devices
-      if: github.event.inputs.RECOVERY_TAR == 'true'
+      if: env.RECOVERY_TAR == 'true'
       run: |
         cd ${{ env.FILE_PATH }}/
         tar -cvf ${{ env.RECOVERY_TYPE }}.tar ${{ env.RECOVERY_TYPE }}.img
@@ -206,10 +218,10 @@ jobs:
           ${{ env.FILE_PATH }}/${{ env.RECOVERY_TYPE }}.tar
           ${{ env.FILE_PATH }}/recovery-installer.zip
           ${{ env.FILE_PATH }}/OrangeFox*.zip
-        name: Unofficial OrangeFox for ${{ github.event.inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+        name: Unofficial OrangeFox for ${{ env.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
         tag_name: ${{ github.run_id }}
         body: |
-          Build: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          Build: ${{ env.MANIFEST_BRANCH }}
           Device: [Device Tree/Branch](${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
           Commit: Most recent [commit](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}) during building.
 
@@ -220,11 +232,11 @@ jobs:
         files: |
           ${{ env.FILE_PATH }}/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.*
           ${{ env.FILE_PATH }}/ramdisk-recovery.*
-        name: Unofficial OrangeFox for ${{ github.event.inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+        name: Unofficial OrangeFox for ${{ env.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
         tag_name: ${{ github.run_id }}
         body: |
           Target: ${{ env.RECOVERY_TYPE }}.img
-          Build: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          Build: ${{ env.MANIFEST_BRANCH }}
           Device: [Device Tree/Branch](${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
           Commit: Most recent [commit](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}) during building.
           MD5 (img): ${{ env.MD5_IMG }}
@@ -235,6 +247,6 @@ jobs:
         mv -n libneeds ${{ env.FILE_PATH }}/recovery/root/
         mv -n ldcheck ${{ env.FILE_PATH }}/recovery/root/
         cd ${{ env.FILE_PATH }}/recovery/root/
-        python3 ldcheck -p system/lib64:vendor/lib64:system/lib:vendor/lib -d ${{ github.event.inputs.LDCHECK }}
+        python3 ldcheck -p system/lib64:vendor/lib64:system/lib:vendor/lib -d ${{ env.LDCHECK }}
         echo "Done checking missing dependencies. Review, and reconfigure your tree."
       continue-on-error: true
