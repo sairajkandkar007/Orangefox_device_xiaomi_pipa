@@ -36,7 +36,7 @@ PRODUCT_SOONG_NAMESPACES += \
 PIPA_RECOVERY_ROOT := $(LOCAL_PATH)/recovery/root
 PRODUCT_COPY_FILES += $(foreach f,$(shell find $(PIPA_RECOVERY_ROOT) -type f),$(f):recovery/root/$(patsubst $(PIPA_RECOVERY_ROOT)/%,%,$(f)))
 
-# Recovery Wi-Fi userspace support (OrangeFox 14.1).
+# Recovery Wi-Fi userspace support (OrangeFox 12.1 A16 configuration).
 TW_INCLUDE_WIFI := true
 
 TWRP_REQUIRED_MODULES += miui_prebuilt
