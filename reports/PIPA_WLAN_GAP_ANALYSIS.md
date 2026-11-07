@@ -51,15 +51,15 @@
 
 | Check | Result | Detail |
 |---|---|---|
-| CI QCA6390 firmware payload staged | **MISSING** | Verified payload and config files in analysis/recovery-firmware-stage; board-data variants are retained without guessing the active board ID. |
-| QCA6390 board-data variants staged | **MISSING** | All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection. |
+| CI QCA6390 firmware payload staged | **PASS** | Verified payload and config files in analysis/recovery-firmware-stage; board-data variants are retained without guessing the active board ID. |
+| QCA6390 board-data variants staged | **PASS** | All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection. |
 | QCA6390 wlan_mac.bin available | **REVIEW** | The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it. |
 | Staged WLAN module directory | **PASS** | Expected staged path: recovery/root/vendor/lib/modules. |
 | Staged vendor supplicant | **MISSING** | Expected staged path: recovery/root/vendor/bin/hw/wpa_supplicant. |
-| Staged CNSS daemon | **MISSING** | Expected staged path: recovery/root/vendor/bin/cnss-daemon. |
+| Staged CNSS daemon | **PASS** | Expected staged path: recovery/root/vendor/bin/cnss-daemon. |
 | Staged rmt_storage daemon | **MISSING** | Expected staged path: recovery/root/vendor/bin/rmt_storage. |
 | Staged WPA config | **PASS** | Expected staged path: recovery/root/vendor/etc/wifi/wpa_supplicant.conf. |
-| Staged WLAN firmware | **MISSING** | Expected staged path: recovery/root/vendor/firmware/wlan/qca_cld. |
+| Staged WLAN firmware | **PASS** | Expected staged path: recovery/root/vendor/firmware/wlan/qca_cld. |
 | Loader targets a single selected chipset | **PASS** | Do not automatically load both candidate drivers; verify the actual chipset first. |
 | rmt_storage read-only wrapper exists | **PASS** | Never start vendor rmt_storage directly without verifying its modem NV/EFS write behavior. |
 | rmt_storage wrapper requests read-only loops | **PASS** | Wrapper should request read-only loop devices using losetup -r. |
@@ -108,13 +108,9 @@
 - **MISSING: QCA6390 MAC firmware** — Looked for vendor/firmware/wlan/qca_cld/qca6390/wlan_mac.bin or odm/firmware/wlan/qca_cld/qca6390/wlan_mac.bin.
 - **MISSING: QCA6490 firmware config** — Looked for vendor/firmware/wlan/qca_cld/qca6490/WCNSS_qcom_cfg.ini or odm/firmware/wlan/qca_cld/qca6490/WCNSS_qcom_cfg.ini.
 - **MISSING: QCA6490 MAC firmware** — Looked for vendor/firmware/wlan/qca_cld/qca6490/wlan_mac.bin or odm/firmware/wlan/qca_cld/qca6490/wlan_mac.bin.
-- **MISSING: CI QCA6390 firmware payload staged** — Verified payload and config files in analysis/recovery-firmware-stage; board-data variants are retained without guessing the active board ID.
-- **MISSING: QCA6390 board-data variants staged** — All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection.
 - **REVIEW: QCA6390 wlan_mac.bin available** — The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it.
 - **MISSING: Staged vendor supplicant** — Expected staged path: recovery/root/vendor/bin/hw/wpa_supplicant.
-- **MISSING: Staged CNSS daemon** — Expected staged path: recovery/root/vendor/bin/cnss-daemon.
 - **MISSING: Staged rmt_storage daemon** — Expected staged path: recovery/root/vendor/bin/rmt_storage.
-- **MISSING: Staged WLAN firmware** — Expected staged path: recovery/root/vendor/firmware/wlan/qca_cld.
 - **MISSING: wpa_supplicant ELF dependencies** — Missing libraries: android.hardware.wifi.supplicant@1.0.so, android.hardware.wifi.supplicant@1.1.so, android.hardware.wifi.supplicant@1.2.so, android.hardware.wifi.supplicant@1.3.so, libdl_android.so
 - **REVIEW: Recovery kernel ABI match** — Not proven by vendor/ODM images alone. Compare module vermagic and symbol dependencies against the exact kernel used by the recovery build.
 - **REVIEW: DLKM images included in firmware release** — Release does not publish separate vendor_dlkm/system_dlkm/odm_dlkm assets. WLAN modules may be stored there; this audit cannot rule out additional dependencies.

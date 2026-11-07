@@ -1,7 +1,7 @@
 # Complete Pipa stock-ROM WLAN file collection
 
 Source: all extracted filesystem partitions, modem extraction trees, boot/vendor_boot ramdisks and raw-partition signature-extraction outputs from the official fastboot ROM.
-Files are stored separately under stock-rom-wlan/ with source partition paths preserved; they are not automatically installed into recovery/root.
+All candidates are preserved under stock-rom-wlan/ with source paths; the verified QCA6390 firmware subset and CNSS daemon are staged into recovery/root by a separate step.
 Collection uses WLAN/QCA/CNSS/supplicant/hostapd/board-data names and WLAN-related configuration paths.
 rmt_storage and modem NV/EFS partitions are excluded. Individual files larger than 50 MiB are skipped.
 
