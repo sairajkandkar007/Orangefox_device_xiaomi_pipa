@@ -135,7 +135,7 @@ jobs:
       id: fox_branch
       with:
         cond: ${{ env.MANIFEST_BRANCH == '14.1' }}
-        if_true: lunch fox_pipa-ap2a-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
+        if_true: lunch twrp_pipa-ap2a-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
         if_false: lunch twrp_pipa-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
 
     - name: Building OrangeFox
