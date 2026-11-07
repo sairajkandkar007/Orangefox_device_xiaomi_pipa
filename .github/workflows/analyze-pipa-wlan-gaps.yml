@@ -15,8 +15,6 @@ on:
       - "fox_pipa.mk"
       - "recovery/root/**"
       - ".github/workflows/analyze-pipa-wlan-gaps.yml"
-      - "scripts/rea_modem_analysis.sh"
-      - "scripts/stage_pipa_qca6390_firmware.sh"
 
 permissions:
   contents: write
@@ -40,23 +38,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 python3-pip binutils kmod cpio aria2 jq binwalk p7zip-full mtools dosfstools procps libfontconfig1-dev liblzma-dev squashfs-tools lz4 device-tree-compiler
 
-      - name: Set up Node.js for REA
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Set up Rust for Binwalk 3
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Install pinned REA firmware-analysis tools
-        run: |
-          set -euo pipefail
-          cargo install binwalk --version 3.1.0 --locked
-          python3 -m pip install --user --break-system-packages 'unblob==26.6.4'
-          npm install --global rea-agents
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          binwalk --version
-          unblob --version
-          rea --version || true
       - name: Set up Go for LP tools
         uses: actions/setup-go@v5
         with:
@@ -327,23 +308,6 @@ jobs:
           echo "Modem image candidates: $(find analysis/modem/images -maxdepth 1 -type f | wc -l)"
           echo "Extracted modem files: $(find analysis/modem/extracted analysis/modem/binwalk -type f 2>/dev/null | wc -l)"
 
-      - name: Run REA static reverse engineering on modem partition
-        id: rea_modem
-        run: |
-          set -euo pipefail
-          chmod +x scripts/rea_modem_analysis.sh
-          scripts/rea_modem_analysis.sh
-      - name: Stage extracted QCA6390 firmware for recovery audit
-        id: stage_qca6390
-        run: |
-          set -euo pipefail
-          chmod +x scripts/stage_pipa_qca6390_firmware.sh
-          scripts/stage_pipa_qca6390_firmware.sh \
-            analysis/modem/extracted/NON-HLOS/image/qca6390 \
-            analysis/recovery-firmware-stage/vendor/firmware/wlan/qca_cld/qca6390 \
-            recovery/root/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini \
-            reports/PIPA_QCA6390_FIRMWARE_STAGING.md
-          echo "QCA6390 firmware staged in an isolated CI output directory; no proprietary modem blobs will be committed."
 
       - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
@@ -369,43 +333,35 @@ jobs:
               (cd "$out/vendor_ramdisk" && cpio -idm --quiet --no-absolute-filenames < ../vendor_ramdisk.cpio) || echo "::warning::Could not extract $part vendor ramdisk cpio"
             fi
           done
-      - name: Inventory requested WLAN assets in stock ROM
+      - name: Deep-scan raw partition images for WLAN payloads
+        run: |
+          set -euo pipefail
+          mkdir -p analysis/raw-partition-scan
+          while IFS= read -r -d '' image; do
+            base="$(basename "$image")"
+            case "$base" in super.img|super_raw.img) continue ;; esac
+            if file "$image" | grep -qiE 'EROFS filesystem|ext[234] filesystem|FAT(12|16|32)'; then
+              continue
+            fi
+            out="analysis/raw-partition-scan/${base}.extracted"
+            mkdir -p "$out"
+            echo "Signature-scanning raw partition: $image"
+            timeout 15m binwalk -eM --directory "$out" "$image" \
+              > "analysis/raw-partition-scan/${base}.log" 2>&1 || true
+          done < <(find firmware analysis/super -maxdepth 1 -type f \
+                    \( -name '*.img' -o -name '*.bin' -o -name '*.mbn' \) -print0 | sort -zu)
+          find analysis/raw-partition-scan -type f -printf '%p\\t%s bytes\\n' | sort \
+            > analysis/raw-partition-scan-file-list.txt
+
+      - name: Scan every extracted partition and collect all WLAN-related files
+        id: collect_all_wlan
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import fnmatch
           import hashlib
+          import shutil
           from pathlib import Path
 
-          # Exact files requested from the live Pipa device, plus previously
-          # missing WLAN init files and supplicant interface libraries.
-          names = [
-              "amss20.bin",
-              "bd_j1_b.elf", "bd_j1gl.elf", "bd_j1in.elf", "bd_j1s.elf",
-              "bd_j2s.elf", "bd_j3s.elf", "bd_j3sgl.elf", "bd_j3sin.elf",
-              "bd_j11.elf", "bd_j11_b.elf", "bd_j11gl.elf", "bd_j11in.elf",
-              "bd_k11a.elf", "bd_k11agl.elf", "bd_k11ain.elf",
-              "bd_k81.elf", "bd_k81a.elf", "bd_l3a.elf", "bd_l3agl.elf",
-              "bd_l81a.elf", "bd_m82.elf", "bd_m82gl.elf", "bd_m82in.elf",
-              "bdwlan.elf",
-              *[f"bdwlan.e{x}" for x in [
-                  "01","02","03","04","05","06","07","08","09","10",
-                  "11","12","13","14","15","16","17","18","25",
-                  "0a","0b","0c","0d","0e","0f"
-              ]],
-              "cnss-daemon", "hostapd", "libdl_android.so", "libwifi-hal.so",
-              "m3.bin", "qca_cld3_qca6390.ko", "qca_cld3_qca6490.ko",
-              "regdb.bin", "regdb_j11.bin", "rmt_storage",
-              "vendor.qti.rmt_storage.rc", "WCNSS_qcom_cfg.ini",
-              "wlan_mac.bin", "wpa_supplicant", "wpa_supplicant.conf",
-              "wpa_supplicant_overlay.conf",
-              "android.hardware.wifi.supplicant@1.0.so",
-              "android.hardware.wifi.supplicant@1.1.so",
-              "android.hardware.wifi.supplicant@1.2.so",
-              "android.hardware.wifi.supplicant@1.3.so",
-              "cnss-daemon.rc", "wpa_supplicant.rc", "wlan_setup.rc",
-          ]
-          wanted = {n.lower() for n in names}
           roots = [
               Path("analysis/partitions"), Path("analysis/standalone"),
               Path("analysis/vendor"), Path("analysis/odm"),
@@ -414,200 +370,86 @@ jobs:
               Path("analysis/system_dlkm"), Path("analysis/odm_dlkm"),
               Path("analysis/boot/unpacked"), Path("analysis/vendor_boot/unpacked"),
               Path("analysis/modem/extracted"), Path("analysis/modem/binwalk"),
+              Path("analysis/raw-partition-scan"),
           ]
-          found = {n: [] for n in sorted(wanted)}
-          extra_board = []
-          scanned_roots = []
-          seen_files = set()
+          exact = {
+              "amss20.bin", "m3.bin", "wlan_mac.bin", "regdb.bin",
+              "regdb_j11.bin", "wcnss_qcom_cfg.ini", "cnss-daemon",
+              "wpa_supplicant", "hostapd", "libwifi-hal.so",
+          }
+
+          def is_wifi_related(p):
+              name = p.name.lower()
+              path = p.as_posix().lower()
+              if "rmt_storage" in name:
+                  return False
+              if name in exact:
+                  return True
+              if name.startswith(("bd_", "bdwlan", "qca", "cnss", "wlan", "wifi", "wpa_", "hostapd")):
+                  return True
+              if name.endswith(".ko") and any(x in name for x in ("wlan", "wifi", "cnss", "qca")):
+                  return True
+              if name.startswith(("android.hardware.wifi.", "libwifi", "libwpa", "libqti-wifi")):
+                  return True
+              if name.endswith((".rc", ".ini", ".conf", ".xml")) and any(
+                  x in path for x in ("wifi", "wlan", "cnss", "qca6390", "supplicant", "hostapd")
+              ):
+                  return True
+              return any(x in name for x in ("wlan", "wifi", "cnss", "qca6390", "qca_cld", "supplicant", "hostapd"))
+
+          destination = Path("stock-rom-wlan")
+          destination.mkdir(parents=True, exist_ok=True)
+          copied, skipped, seen = [], [], set()
 
           for root in roots:
               if not root.exists():
                   continue
-              scanned_roots.append(str(root))
-              for p in root.rglob("*"):
-                  if not p.is_file():
-                      continue
-                  try:
-                      resolved = p.resolve()
-                      if resolved in seen_files:
-                          continue
-                      seen_files.add(resolved)
-                      low = p.name.lower()
-                      if low in wanted:
-                          found[low].append(p)
-                      elif low.startswith("bd_") and low.endswith(".elf"):
-                          extra_board.append(p)
-                  except (OSError, PermissionError):
-                      continue
-
-          out = Path("reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          lines = [
-              "# Pipa WLAN stock-ROM file inventory", "",
-              "- Source: official Xiaomi Pipa fastboot ROM extracted by this workflow.",
-              "- This report records paths, sizes and SHA-256. A separate staging step copies allowlisted WLAN assets from extracted vendor/system/odm partitions into the recovery tree.",
-              "- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk/modem roots scanned below.",
-              "- Modem extraction is read-only. The workflow only examines modem.img/modem_a.img/modem_b.img/NON-HLOS images; it never processes modemst*, fsg, persist or NV/EFS partitions.",
-              "- If the modem image is a proprietary raw container rather than EROFS/ext, binwalk signature extraction is attempted in the isolated runner; absence from the inventory is not proof that the firmware is absent from the device's mounted modem filesystem.",
-              "",
-              "## Scanned extraction roots", "",
-          ]
-          modem_log = Path("analysis/modem/modem-extraction.log")
-          modem_list = Path("analysis/modem/modem-file-list.txt")
-          lines += ["", "## Modem partition extraction details", ""]
-          if modem_log.exists():
-              lines += ["```text", modem_log.read_text(errors="replace").strip() or "No modem extraction log output.", "```", ""]
-          else:
-              lines += ["No modem extraction log was generated.", ""]
-          if modem_list.exists() and modem_list.stat().st_size:
-              lines += ["### Modem image and extraction files", "", "```text", modem_list.read_text(errors="replace").strip(), "```", ""]
-          lines.extend(f"- `{r}`" for r in scanned_roots)
-          lines += ["", "## Requested files", "",
-                    "| Filename | Status | Stock-ROM path | Size | SHA-256 |",
-                    "|---|---|---|---:|---|"]
-          for name in sorted(wanted):
-              matches = sorted(found[name], key=lambda p: str(p))
-              if not matches:
-                  lines.append(f"| `{name}` | **NOT FOUND** | — | — | — |")
-                  continue
-              for p in matches:
-                  try:
-                      size = p.stat().st_size
-                      digest = hashlib.sha256(p.read_bytes()).hexdigest()
-                      rel = str(p)
-                      lines.append(f"| `{name}` | **FOUND** | `{rel}` | {size} | `{digest}` |")
-                  except OSError as e:
-                      lines.append(f"| `{name}` | **FOUND, unreadable** | `{p}` | — | {e} |")
-
-          lines += ["", "## Additional board firmware files", "",
-                    "| Filename | Stock-ROM path | Size | SHA-256 |",
-                    "|---|---|---:|---|"]
-          if extra_board:
-              for p in sorted(extra_board, key=lambda p: str(p)):
-                  try:
-                      data = p.read_bytes()
-                      lines.append(f"| `{p.name}` | `{p}` | {len(data)} | `{hashlib.sha256(data).hexdigest()}` |")
-                  except OSError:
-                      lines.append(f"| `{p.name}` | `{p}` | — | unreadable |")
-          else:
-              lines.append("| — | No additional bd_*.elf files found | — | — |")
-
-          lines += [
-              "", "## Handling",
-              "",
-              "The workflow stages allowlisted WLAN modules/assets from extracted vendor/system/odm partitions into recovery/root and commits them with the audit reports. It does not copy the complete ROM, modem image, NV/EFS partitions, or rmt_storage executable.",
-              ""
-          ]
-          out.write_text("\n".join(lines))
-          found_count = sum(bool(v) for v in found.values())
-          print(f"Requested unique filenames found: {found_count}/{len(wanted)}")
-          print(f"Inventory written: {out}")
-          PY
-
-      - name: Stage verified WLAN modules and assets from stock partitions
-        id: stage_wlan
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import hashlib
-          import shutil
-          from pathlib import Path
-
-          names = ("vendor", "odm", "system")
-          roots = {}
-          for name in names:
-              candidates = (
-                  Path("analysis/partitions") / name,
-                  Path("analysis/standalone") / name,
-                  Path("analysis") / name,
-              )
-              root = next((p for p in candidates if p.is_dir() and any(p.iterdir())), None)
-              if root:
-                  roots[name] = root
-
-          dest_root = Path("recovery/root")
-          copied = []
-          skipped = []
-          seen = set()
-
-          def wanted_file(partition, p):
-              n = p.name.lower()
-              rel = p.relative_to(roots[partition]).as_posix().lower()
-
-              # QCA6390 is the target chipset; do not stage QCA6490.
-              if n == "qca_cld3_qca6390.ko":
-                  return True
-              if n.endswith(".ko") and any(x in n for x in ("wlan", "cnss", "qca6390")):
-                  return True
-
-              if n in {"amss20.bin", "m3.bin", "wlan_mac.bin", "regdb.bin", "regdb_j11.bin",
-                       "wcnss_qcom_cfg.ini"}:
-                  return True
-              if n.startswith("bd_") and n.endswith(".elf"):
-                  return True
-              if n.startswith("bdwlan.") or n == "bdwlan.elf":
-                  return True
-
-              # rmt_storage is excluded because it may access modem NV/EFS.
-              if n in {"cnss-daemon", "wpa_supplicant", "hostapd", "libwifi-hal.so",
-                       "wpa_supplicant.conf", "wpa_supplicant_overlay.conf"}:
-                  return True
-              if n.startswith("android.hardware.wifi.supplicant@") and n.endswith(".so"):
-                  return True
-              if n == "libdl_android.so" and "/bootstrap/" in "/" + rel:
-                  return True
-              if n.endswith(".rc") and any(x in n for x in ("cnss", "wlan", "supplicant")):
-                  return True
-              return False
-
-          for partition, root in roots.items():
               for src in root.rglob("*"):
-                  if not src.is_file() or not wanted_file(partition, src):
+                  if not src.is_file() or not is_wifi_related(src):
                       continue
                   try:
-                      resolved = src.resolve()
-                      if resolved in seen:
+                      identity = (str(src.resolve()), src.stat().st_size)
+                      if identity in seen:
                           continue
-                      seen.add(resolved)
-                      rel = src.relative_to(root)
-                      dst = dest_root / partition / rel
-                      size = src.stat().st_size
-                      if size > 50 * 1024 * 1024:
-                          skipped.append((src, "over 50 MiB safety limit"))
+                      seen.add(identity)
+                      if src.stat().st_size > 50 * 1024 * 1024:
+                          skipped.append((str(src), "over 50 MiB repository safety limit"))
                           continue
-                      dst.parent.mkdir(parents=True, exist_ok=True)
-                      shutil.copy2(src, dst)
-                      digest = hashlib.sha256(dst.read_bytes()).hexdigest()
-                      copied.append((partition, str(rel), str(dst), size, digest))
+                      relative = src.relative_to(root)
+                      if root.name in ("partitions", "standalone") and len(relative.parts) > 1:
+                          rel = Path(relative.parts[0]) / Path(*relative.parts[1:])
+                      else:
+                          rel = relative
+                      out = destination / root.name / rel
+                      out.parent.mkdir(parents=True, exist_ok=True)
+                      shutil.copy2(src, out)
+                      digest = hashlib.sha256(out.read_bytes()).hexdigest()
+                      copied.append((str(src), str(out), out.stat().st_size, digest))
                   except (OSError, PermissionError) as exc:
-                      skipped.append((src, str(exc)))
+                      skipped.append((str(src), str(exc)))
 
-          report = Path("reports/PIPA_WLAN_STAGED_ASSETS.md")
+          copied.sort()
           lines = [
-              "# Pipa WLAN assets staged from stock partitions", "",
-              "Source: extracted official Xiaomi Pipa fastboot ROM partitions (vendor, system, odm).",
-              "Only matching WLAN modules, firmware/board-data files, WLAN daemons/configuration and directly relevant libraries are copied.",
-              "The QCA6390 module is selected for this device; the QCA6490 alternative is not staged.",
-              "rmt_storage is deliberately excluded because its modem NV/EFS write behavior requires separate safety validation.",
-              "Each copied file is listed with its source, destination, size and SHA-256.", "",
-              "| Partition | Source-relative path | Recovery destination | Bytes | SHA-256 |",
-              "|---|---|---|---:|---|",
+              "# Complete Pipa stock-ROM WLAN file collection", "",
+              "Source: all extracted filesystem partitions, modem extraction trees, boot/vendor_boot ramdisks and raw-partition signature-extraction outputs from the official fastboot ROM.",
+              "Files are stored separately under stock-rom-wlan/ with source partition paths preserved; they are not automatically installed into recovery/root.",
+              "Collection uses WLAN/QCA/CNSS/supplicant/hostapd/board-data names and WLAN-related configuration paths.",
+              "rmt_storage and modem NV/EFS partitions are excluded. Individual files larger than 50 MiB are skipped.",
+              "", "| Original source | Repository copy | Bytes | SHA-256 |",
+              "|---|---|---:|---|",
           ]
-          for part, rel, dst, size, digest in sorted(copied):
-              lines.append(f"| {part} | {rel} | {dst} | {size} | {digest} |")
+          for src, out, size, digest in copied:
+              lines.append("| " + src + " | " + out + " | " + str(size) + " | " + digest + " |")
           if not copied:
-              lines.append("| — | No matching assets found in extracted vendor/system/odm roots | — | — | — |")
-          lines += ["", "## Skipped files", ""]
-          if skipped:
-              lines.extend(f"- {p} — {reason}" for p, reason in skipped)
-          else:
-              lines.append("- None")
-          lines += ["", f"Total copied: {len(copied)} files", ""]
-          report.parent.mkdir(parents=True, exist_ok=True)
-          report.write_text("\n".join(lines))
-          print(f"Staged {len(copied)} verified WLAN assets.")
-          if not roots:
-              raise SystemExit("No extracted vendor/system/odm partition roots were available.")
+              lines.append("| No matching WLAN files discovered | — | — | — |")
+          lines += ["", "## Skipped candidates", ""]
+          lines.extend("- " + p + " — " + reason for p, reason in skipped)
+          lines += ["", "Collected: " + str(len(copied)), "Skipped: " + str(len(skipped)), ""]
+          Path("reports").mkdir(exist_ok=True)
+          Path("reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md").write_text("\n".join(lines))
+          print("Collected " + str(len(copied)) + " WLAN-related files; skipped " + str(len(skipped)) + ".")
+          if not copied:
+              raise SystemExit("No WLAN-related files were found across extracted partition roots.")
           PY
 
       - name: Compare recovery tree with Pipa vendor WLAN stack
@@ -918,13 +760,7 @@ jobs:
           # Android filesystem trees, modem NV/EFS data, or rmt_storage.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
           if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
-          if [ -f reports/PIPA_MODEM_REA_ANALYSIS.md ]; then git add -f reports/PIPA_MODEM_REA_ANALYSIS.md; fi
-          if [ -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md ]; then git add -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md; fi
-          if [ -d analysis/modem/rea ]; then
-            find analysis/modem/rea -maxdepth 1 -type f \( -name "*.json" -o -name "tool-versions.txt" \) -print0 | xargs -0 -r git add -f
-            find analysis/modem/rea/regions analysis/modem/rea/unblob analysis/modem/rea/logs -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r git add -f
-          fi
-          git add -f recovery/root/vendor recovery/root/system recovery/root/odm 2>/dev/null || true
+          git add -f stock-rom-wlan/ 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
             firmware/source.txt \
@@ -934,7 +770,7 @@ jobs:
             analysis/super-partition-inventory.txt \
             analysis/modem/modem-extraction.log \
             analysis/modem/modem-file-list.txt \
-            analysis/modem/rea-file-list.txt; do
+            analysis/raw-partition-scan-file-list.txt; do
             if [ -f "$output" ]; then git add -f "$output"; fi
           done
 
@@ -943,7 +779,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "ci: update Pipa WLAN firmware analysis"
+          git commit -m "ci: collect WLAN files from all Pipa stock partitions"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Unmount extracted filesystem images
