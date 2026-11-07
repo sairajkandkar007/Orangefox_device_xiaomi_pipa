@@ -1,5 +1,5 @@
 # Orange Fox (OFRP) for Xiaomi Pad 6 (pipa)  
-Built using Xiaomi Pad 6, HyperOS 1.0 (Android 13), compatible with OrangeFox Android 12 branch  
+Device: Xiaomi Pad 6 (pipa), Snapdragon 870, A/B with dynamic partitions. The recovery uses the OrangeFox fox_12.1 build manifest and the A16-compatible device configuration; the original stock vendor base is Android 13.  
 
 ![OFRP](https://image.ibb.co/cTMWux/logo.jpg "OFRP")  
 ====================================================
@@ -30,16 +30,16 @@ You can also use tools like "Gaiji Assistant" (PC version) or FastbootEnhance to
 
 # How to Build
 Download the OFRP source code and clone this device tree into the appropriate location.  
-For example, if your OFRP source root is `~/fox_12.1`, place this repo at `~/fox_12.1/device/xiaomi/pipa/`:  
+For example, if your OrangeFox source root is `~/fox_12.1`, place this repository at `~/fox_12.1/device/xiaomi/pipa/`:  
 ```bash
 cd ~/fox_12.1
 mkdir -p device/xiaomi
 cd device/xiaomi
-git clone https://github.com/pipaDB/OFRP-device_xiaomi_pipa.git pipa
+git clone https://github.com/sairajkandkar007/orangefox_device_xiaomi_pipa.git pipa
 ```
 From the source root directory, run:  
 ```bash
-. build/envsetup.sh && lunch twrp_pipa-eng && mka bootimage
+. build/envsetup.sh && export FOX_BUILD_DEVICE=pipa && lunch twrp_pipa-eng && mka adbd bootimage
 ```
 
 # Cloud Build
