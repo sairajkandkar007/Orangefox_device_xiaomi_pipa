@@ -44,13 +44,41 @@ while IFS= read -r -d '' sample; do
 done < <(find "$BASE/windows" -type f -name '*.bin' -print0 | sort -z)
 
 # Copy FAT contents through mtools in read-only source mode, without mounting.
-if [ -f "$MODEM_IMAGE" ] && file "$MODEM_IMAGE" | grep -Eqi 'FAT(12|16|32)'; then
+# Try a volume beginning at byte zero first, then parse MBR partition starts
+# and test both common 512-byte and 4096-byte logical-sector interpretations.
+if [ -f "$MODEM_IMAGE" ] && file "$MODEM_IMAGE" | grep -Eqi 'FAT(12|16|32)|DOS/MBR'; then
   mkdir -p analysis/modem/extracted/NON-HLOS
-  if mdir -i "$MODEM_IMAGE" ::/ > "$BASE/logs/fat-root-listing.txt" 2>&1; then
-    mcopy -s -i "$MODEM_IMAGE" '::*' analysis/modem/extracted/NON-HLOS/ \
+  image_spec="$MODEM_IMAGE"
+  if ! mdir -i "$image_spec" ::/ > "$BASE/logs/fat-root-listing.txt" 2>&1; then
+    python3 - <<'PY' > "$BASE/logs/fat-offset-candidates.txt"
+from pathlib import Path
+p = Path("analysis/modem/images/NON-HLOS.bin")
+data = p.read_bytes()[:512]
+if len(data) >= 512 and data[510:512] == b"\\x55\\xaa":
+    for i in range(4):
+        entry = data[446 + 16*i:462 + 16*i]
+        ptype = entry[4]
+        start = int.from_bytes(entry[8:12], "little")
+        count = int.from_bytes(entry[12:16], "little")
+        if ptype and start and count:
+            for sector in (512, 4096):
+                print(start * sector)
+PY
+    while IFS= read -r offset; do
+      [ -n "$offset" ] || continue
+      candidate="$MODEM_IMAGE@@$offset"
+      if mdir -i "$candidate" ::/ > "$BASE/logs/fat-root-listing-offset-$offset.txt" 2>&1; then
+        image_spec="$candidate"
+        echo "$offset" > "$BASE/logs/fat-selected-byte-offset.txt"
+        break
+      fi
+    done < "$BASE/logs/fat-offset-candidates.txt"
+  fi
+  if mdir -i "$image_spec" ::/ > "$BASE/logs/fat-selected-listing.txt" 2>&1; then
+    mcopy -s -i "$image_spec" '::*' analysis/modem/extracted/NON-HLOS/ \
       > "$BASE/logs/fat-copy.stdout" 2> "$BASE/logs/fat-copy.stderr" || true
   else
-    echo "FAT volume not addressable at offset zero; partition offset must be identified." \
+    echo "FAT extraction failed at byte zero and all parsed MBR partition offsets." \
       > "$BASE/logs/fat-extraction-limitation.txt"
   fi
 fi
