@@ -490,6 +490,57 @@ jobs:
               raise SystemExit("No WLAN-related files were found across extracted partition roots.")
           PY
 
+      - name: Stage verified QCA6390 firmware into recovery root
+        run: |
+          set -euo pipefail
+          SRC="analysis/modem/extracted/NON-HLOS/image/qca6390"
+          DST="recovery/root/vendor/firmware/wlan/qca_cld/qca6390"
+          [ -d "$SRC" ] || { echo "::error::QCA6390 modem firmware extraction is missing: $SRC"; exit 1; }
+          mkdir -p "$DST"
+
+          # Copy only the QCA6390 firmware payload and board-data candidates.
+          # Preserve every board-data variant; never guess the active board ID.
+          find "$SRC" -maxdepth 1 -type f \\
+            \\( -name 'amss20.bin' -o -name 'm3.bin' -o -name 'bdwlan.elf' \\
+               -o -name 'bdwlan.e*' -o -name 'bd_*.elf' -o -name 'regdb*.bin' \\) \\
+            -exec install -m 0644 {} "$DST/" \\;
+
+          CFG=""
+          for root in analysis/partitions/vendor analysis/standalone/vendor analysis/vendor; do
+            [ -d "$root" ] || continue
+            CFG="$(find "$root" -type f -path '*/etc/wifi/qca6390/WCNSS_qcom_cfg.ini' -print -quit)"
+            [ -n "$CFG" ] && break
+          done
+          [ -n "$CFG" ] || { echo "::error::Stock QCA6390 WCNSS_qcom_cfg.ini was not found"; exit 1; }
+          install -m 0644 "$CFG" "$DST/WCNSS_qcom_cfg.ini"
+
+          for required in amss20.bin m3.bin bdwlan.elf regdb.bin WCNSS_qcom_cfg.ini; do
+            [ -s "$DST/$required" ] || { echo "::error::Missing required QCA6390 payload: $required"; exit 1; }
+          done
+          BOARD_DATA_COUNT="$(find "$DST" -maxdepth 1 -type f \\( -name 'bd_*.elf' -o -name 'bdwlan.e*' \\) | wc -l)"
+          [ "$BOARD_DATA_COUNT" -gt 0 ] || { echo "::error::No QCA6390 board-data variants were extracted"; exit 1; }
+
+          cat > reports/PIPA_QCA6390_FIRMWARE_STAGING.md <<'EOF'
+          # Pipa QCA6390 recovery firmware staging
+
+          - Source: official Pipa fastboot ROM `OS2.0.14.0.UMZINXM`.
+          - Recovery destination: `recovery/root/vendor/firmware/wlan/qca_cld/qca6390/`.
+          - Includes the stock `amss20.bin`, `m3.bin`, `bdwlan.elf`, regulatory database, QCA6390 configuration, and all extracted `bd_*.elf` / `bdwlan.e*` board-data candidates.
+          - Board-data variants are preserved without selecting or renaming one. Select the active variant only after confirming the runtime board ID.
+          - `wlan_mac.bin` was not present in the extracted QCA6390 modem payload and is not fabricated.
+          - The QCA6390 kernel module and vendor WLAN configuration already exist in the recovery tree. Module loading still requires matching the recovery kernel ABI.
+          - This is file staging only; it does not prove firmware boot, driver initialization, scanning, or connectivity.
+          EOF
+          {
+            echo
+            echo "## Staged payload"
+            echo
+            find "$DST" -maxdepth 1 -type f -printf '%f (%s bytes)\\n' | sort
+            echo
+            echo "Board-data candidates: $BOARD_DATA_COUNT"
+            if [ -e "$DST/wlan_mac.bin" ]; then echo "wlan_mac.bin: present"; else echo "wlan_mac.bin: unavailable in extracted source"; fi
+          } >> reports/PIPA_QCA6390_FIRMWARE_STAGING.md
+
       - name: Compare recovery tree with Pipa vendor WLAN stack
         env:
           FIRMWARE_TAG: ${{ steps.firmware.outputs.tag }}
@@ -629,7 +680,7 @@ jobs:
           add()
           add("| Check | Result | Detail |")
           add("|---|---|---|")
-          ci_qca_fw = Path("analysis/recovery-firmware-stage/vendor/firmware/wlan/qca_cld/qca6390")
+          ci_qca_fw = recovery / "vendor/firmware/wlan/qca_cld/qca6390"
           ci_fw_names = {p.name for p in ci_qca_fw.glob("*") if p.is_file()} if ci_qca_fw.is_dir() else set()
           check("CI QCA6390 firmware payload staged",
                 {"amss20.bin", "m3.bin", "bdwlan.elf", "regdb.bin", "WCNSS_qcom_cfg.ini"}.issubset(ci_fw_names),
@@ -797,6 +848,8 @@ jobs:
           # Never commit the downloaded ROM, partition images, full extracted
           # Android filesystem trees, modem NV/EFS data, or rmt_storage.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
+          git add -f reports/PIPA_QCA6390_FIRMWARE_STAGING.md 2>/dev/null || true
+          git add -f recovery/root/vendor/firmware/wlan/qca_cld/qca6390/ 2>/dev/null || true
           git add -f stock-rom-wlan/ 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
