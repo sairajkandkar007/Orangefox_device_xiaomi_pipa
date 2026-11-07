@@ -122,15 +122,3 @@
 - A passing file-presence check does not establish that the Wi-Fi driver initializes, firmware boots, supplicant scans, or DHCP works.
 - Files found in system/product partitions are dependency evidence only; their presence does not automatically make them suitable for staging into recovery.
 
-
-
-## Follow-up audit notes
-
-- The recovery tree now contains the QCA6390 firmware payload, 49 board-data candidates, the stock CNSS daemon, and the stock CNSS init service definition.
-- The duplicate CNSS service declaration in init.recovery.wlan.rc was removed; the init trigger starts the existing stock service.
-- The recovery supplicant executable and its required shared-library dependencies are still not staged. Wi-Fi userspace bring-up is therefore incomplete.
-- The QCA6390 module's compatibility with the exact recovery kernel and its runtime dependency closure remain unverified.
-- No wlan_mac.bin was found in the extracted QCA6390 modem firmware.
-- The active board-data candidate has not been selected; runtime board-ID evidence is required.
-- The modem rmt_storage daemon is intentionally not staged or started. Modem NV/EFS remains untouched.
-- No GitHub Actions status was returned for the latest integration commits. These changes have not been build- or hardware-tested.
