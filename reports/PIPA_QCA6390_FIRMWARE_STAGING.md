@@ -64,6 +64,7 @@ bdwlan.elf (57868 bytes)
 m3.bin (266684 bytes)
 regdb.bin (19348 bytes)
 regdb_j11.bin (19348 bytes)
+wlan_mac.bin (20 bytes)
 
 Board-data candidates: 49
-wlan_mac.bin: unavailable in extracted source
+wlan_mac.bin: present

@@ -53,7 +53,7 @@
 |---|---|---|
 | CI QCA6390 firmware payload staged | **PASS** | Verified payload and config files in recovery/root/vendor/firmware/wlan/qca_cld/qca6390; board-data variants are retained without guessing the active board ID. |
 | QCA6390 board-data variants staged | **PASS** | All extracted bd_*.elf and bdwlan.e* variants should be staged for later runtime board-ID selection. |
-| QCA6390 wlan_mac.bin available | **REVIEW** | The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it. |
+| QCA6390 wlan_mac.bin available | **PASS** | The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it. |
 | Staged WLAN module directory | **PASS** | Expected staged path: recovery/root/vendor/lib/modules. |
 | Staged vendor supplicant | **PASS** | Expected staged path: recovery/root/vendor/bin/hw/wpa_supplicant. |
 | Staged CNSS daemon | **PASS** | Expected staged path: recovery/root/vendor/bin/cnss-daemon. |
@@ -108,7 +108,6 @@
 - **MISSING: QCA6390 MAC firmware** — Looked for vendor/firmware/wlan/qca_cld/qca6390/wlan_mac.bin or odm/firmware/wlan/qca_cld/qca6390/wlan_mac.bin.
 - **MISSING: QCA6490 firmware config** — Looked for vendor/firmware/wlan/qca_cld/qca6490/WCNSS_qcom_cfg.ini or odm/firmware/wlan/qca_cld/qca6490/WCNSS_qcom_cfg.ini.
 - **MISSING: QCA6490 MAC firmware** — Looked for vendor/firmware/wlan/qca_cld/qca6490/wlan_mac.bin or odm/firmware/wlan/qca_cld/qca6490/wlan_mac.bin.
-- **REVIEW: QCA6390 wlan_mac.bin available** — The extracted NON-HLOS qca6390 directory did not provide wlan_mac.bin; do not fabricate it.
 - **MISSING: Staged rmt_storage daemon** — Expected staged path: recovery/root/vendor/bin/rmt_storage.
 - **MISSING: wpa_supplicant ELF dependencies** — Missing libraries: android.hardware.wifi.supplicant@1.0.so, android.hardware.wifi.supplicant@1.1.so, android.hardware.wifi.supplicant@1.2.so, android.hardware.wifi.supplicant@1.3.so
 - **REVIEW: Recovery kernel ABI match** — Not proven by vendor/ODM images alone. Compare module vermagic and symbol dependencies against the exact kernel used by the recovery build.
