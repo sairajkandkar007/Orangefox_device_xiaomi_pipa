@@ -500,10 +500,10 @@ jobs:
 
           # Copy only the QCA6390 firmware payload and board-data candidates.
           # Preserve every board-data variant; never guess the active board ID.
-          find "$SRC" -maxdepth 1 -type f \\
-            \\( -name 'amss20.bin' -o -name 'm3.bin' -o -name 'bdwlan.elf' \\
-               -o -name 'bdwlan.e*' -o -name 'bd_*.elf' -o -name 'regdb*.bin' \\) \\
-            -exec install -m 0644 {} "$DST/" \\;
+          find "$SRC" -maxdepth 1 -type f \
+            \( -name 'amss20.bin' -o -name 'm3.bin' -o -name 'bdwlan.elf' \
+               -o -name 'bdwlan.e*' -o -name 'bd_*.elf' -o -name 'regdb*.bin' \) \
+            -exec install -m 0644 {} "$DST/" \;
 
           CFG=""
           for root in analysis/partitions/vendor analysis/standalone/vendor analysis/vendor; do
@@ -517,7 +517,7 @@ jobs:
           for required in amss20.bin m3.bin bdwlan.elf regdb.bin WCNSS_qcom_cfg.ini; do
             [ -s "$DST/$required" ] || { echo "::error::Missing required QCA6390 payload: $required"; exit 1; }
           done
-          BOARD_DATA_COUNT="$(find "$DST" -maxdepth 1 -type f \\( -name 'bd_*.elf' -o -name 'bdwlan.e*' \\) | wc -l)"
+          BOARD_DATA_COUNT="$(find "$DST" -maxdepth 1 -type f \( -name 'bd_*.elf' -o -name 'bdwlan.e*' \) | wc -l)"
           [ "$BOARD_DATA_COUNT" -gt 0 ] || { echo "::error::No QCA6390 board-data variants were extracted"; exit 1; }
 
           cat > reports/PIPA_QCA6390_FIRMWARE_STAGING.md <<'EOF'
@@ -535,7 +535,7 @@ jobs:
             echo
             echo "## Staged payload"
             echo
-            find "$DST" -maxdepth 1 -type f -printf '%f (%s bytes)\\n' | sort
+            find "$DST" -maxdepth 1 -type f -printf '%f (%s bytes)\n' | sort
             echo
             echo "Board-data candidates: $BOARD_DATA_COUNT"
             if [ -e "$DST/wlan_mac.bin" ]; then echo "wlan_mac.bin: present"; else echo "wlan_mac.bin: unavailable in extracted source"; fi
