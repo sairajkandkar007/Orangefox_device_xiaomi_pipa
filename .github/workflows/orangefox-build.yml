@@ -133,11 +133,34 @@ jobs:
     - name: Building OrangeFox
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
+        # Some OrangeFox/Lineage envsetup variants return non-zero after
+        # loading device vendorsetup files. Preserve that status for diagnosis,
+        # but do not abort before checking whether the build functions loaded.
+        set +e
         source build/envsetup.sh
+        ENVSETUP_STATUS=$?
+        set -e
+        echo "build/envsetup.sh exit status: ${ENVSETUP_STATUS}"
+        if ! declare -F lunch >/dev/null 2>&1; then
+          echo "FATAL: lunch function was not loaded by build/envsetup.sh"
+          exit 1
+        fi
+
         export ALLOW_MISSING_DEPENDENCIES=true
         export LC_ALL="C"
         export FOX_BUILD_DEVICE=pipa
+
+        set +e
         lunch twrp_pipa-eng
+        LUNCH_STATUS=$?
+        set -e
+        if [ "${LUNCH_STATUS}" -ne 0 ]; then
+          echo "FATAL: lunch twrp_pipa-eng failed (exit ${LUNCH_STATUS})."
+          echo "Available Pipa product definitions:"
+          find device/xiaomi/pipa -maxdepth 2 \\( -name 'AndroidProducts.mk' -o -name 'twrp_pipa.mk' \\) -print
+          exit "${LUNCH_STATUS}"
+        fi
+
         make clean
         mka adbd ${{ env.BUILD_TARGET }}image
 
