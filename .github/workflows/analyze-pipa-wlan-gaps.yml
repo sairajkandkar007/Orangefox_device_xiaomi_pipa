@@ -15,6 +15,7 @@ on:
       - "fox_pipa.mk"
       - "recovery/root/**"
       - ".github/workflows/analyze-pipa-wlan-gaps.yml"
+      - "scripts/rea_modem_analysis.sh"
 
 permissions:
   contents: write
