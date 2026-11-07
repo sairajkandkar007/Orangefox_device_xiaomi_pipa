@@ -1,416 +1,240 @@
-# Pipa WLAN stock-ROM file inventory
+# Complete Pipa stock-ROM WLAN file collection
 
-- Source: official Xiaomi Pipa fastboot ROM extracted by this workflow.
-- This report records paths, sizes and SHA-256. A separate staging step copies allowlisted WLAN assets from extracted vendor/system/odm partitions into the recovery tree.
-- A missing entry means the exact filename was not found in the extracted filesystem/ramdisk/modem roots scanned below.
-- Modem extraction is read-only. The workflow only examines modem.img/modem_a.img/modem_b.img/NON-HLOS images; it never processes modemst*, fsg, persist or NV/EFS partitions.
-- If the modem image is a proprietary raw container rather than EROFS/ext, binwalk signature extraction is attempted in the isolated runner; absence from the inventory is not proof that the firmware is absent from the device's mounted modem filesystem.
+Source: all extracted filesystem partitions, modem extraction trees, boot/vendor_boot ramdisks and raw-partition signature-extraction outputs from the official fastboot ROM.
+Files are stored separately under stock-rom-wlan/ with source partition paths preserved; they are not automatically installed into recovery/root.
+Collection uses WLAN/QCA/CNSS/supplicant/hostapd/board-data names and WLAN-related configuration paths.
+rmt_storage and modem NV/EFS partitions are excluded. Individual files larger than 50 MiB are skipped.
 
-## Scanned extraction roots
-
-
-## Modem partition extraction details
-
-```text
-===== NON-HLOS.bin =====
-analysis/modem/images/NON-HLOS.bin: DOS/MBR boot sector, code offset 0x3c+2, OEM-ID "MSDOS5.0", Bytes/sector 4096, sectors/cluster 4, root entries 512, Media descriptor 0xf8, sectors/FAT 15, sectors/track 63, heads 255, sectors 114688 (volumes > 32 MB), serial number 0xbc614e, unlabeled, FAT (16 bit)
-6349e11dc155809eadff5780c7f38d50b7428be99f09f921335fcdf80d2a7845  analysis/modem/images/NON-HLOS.bin
-No top-level EROFS/ext filesystem detected; running signature scan only.
-
-                                        /home/runner/work/orangefox_device_xiaomi_pipa/orangefox_device_xiaomi_pipa/analysis/modem/binwalk/NON-HLOS/NON-HLOS.bin
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-DECIMAL                            HEXADECIMAL                        DESCRIPTION
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-3299037                            0x3256DD                           PEM certificate
-3446006                            0x3494F6                           PEM certificate
-3501356                            0x356D2C                           PEM certificate
-3625396                            0x3751B4                           PEM certificate
-3690932                            0x3851B4                           PEM certificate
-3779957                            0x39AD75                           PEM certificate
-3829036                            0x3A6D2C                           PEM certificate
-4420537                            0x4373B9                           PEM certificate
-4501531                            0x44B01B                           PEM certificate
-4781407                            0x48F55F                           PEM certificate
-22519925                           0x157A075                          PEM certificate
-22522177                           0x157A941                          PEM certificate
-35524272                           0x21E0EB0                          SHA256 hash constants, little endian
-35694800                           0x220A8D0                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-45190336                           0x2B18CC0                          SHA256 hash constants, little endian
-48290271                           0x2E0D9DF                          Copyright text: "Copyright 2002-2007 Open Interface North America, Inc. All rights reserved"
-49516664                           0x2F39078                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-49699456                           0x2F65A80                          Copyright text: "Copyright (c) 1992-2004 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-53102144                           0x32A4640                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-53284936                           0x32D1048                          Copyright text: "Copyright (c) 1992-2004 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-53342208                           0x32DF000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-53489664                           0x3303000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-53506048                           0x3307000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-54243328                           0x33BB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-54259712                           0x33BF000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-55128064                           0x3493000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-55144448                           0x3497000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-55619584                           0x350B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-55635968                           0x350F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-56160256                           0x358F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-56176640                           0x3593000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-56340480                           0x35BB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-58341008                           0x37A3690                          SHA256 hash constants, little endian
-58494816                           0x37C8F60                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-62178568                           0x3B4C508                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-62264544                           0x3B614E0                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-62287872                           0x3B67000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-62675868                           0x3BC5B9C                          SHA256 hash constants, little endian
-62676888                           0x3BC5F98                          AES S-Box
-62677144                           0x3BC6098                          AES S-Box
-62763008                           0x3BDB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-62795776                           0x3BE3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-63283072                           0x3C59F80                          SHA256 hash constants, little endian
-63284560                           0x3C5A550                          AES S-Box
-63284816                           0x3C5A650                          AES S-Box
-63385600                           0x3C73000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-63418368                           0x3C7B000                          ELF binary, 32-bit executable, Tensilica Xtensa for System-V (Unix), little endian
-64073728                           0x3D1B000                          ELF binary, 32-bit executable, Tensilica Xtensa for System-V (Unix), little endian
-64090112                           0x3D1F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-64270336                           0x3D4B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-64286720                           0x3D4F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-64434176                           0x3D73000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-64450560                           0x3D77000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-64630784                           0x3DA3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-64663552                           0x3DAB000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-70320770                           0x4310282                          Copyright text: "Copyright (C) 1991-2020 The libjpeg-turbo Project and many others"
-75558912                           0x480F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-75575296                           0x4813000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-76227948                           0x48B256C                          CRC32 polynomial table, little endian
-78213120                           0x4A97000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-78229504                           0x4A9B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-78862584                           0x4B358F8                          CRC32 polynomial table, little endian
-80834560                           0x4D17000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-80850944                           0x4D1B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-81503416                           0x4DBA4B8                          CRC32 polynomial table, little endian
-83488768                           0x4F9F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-83505152                           0x4FA3000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-83954508                           0x5010B4C                          CRC32 polynomial table, little endian
-83974284                           0x501588C                          CRC32 polynomial table, little endian
-85815296                           0x51D7000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-85831680                           0x51DB000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-90058192                           0x55E2DD0                          SHA256 hash constants, little endian
-90308012                           0x561FDAC                          CRC32 polynomial table, little endian
-91383592                           0x5726728                          CRC32 polynomial table, little endian
-91629832                           0x5762908                          AES S-Box
-91630600                           0x5762C08                          AES S-Box
-91632724                           0x5763454                          AES S-Box
-91633236                           0x5763654                          AES S-Box
-91633912                           0x57638F8                          CRC32 polynomial table, little endian
-91701092                           0x5773F64                          AES S-Box
-95055872                           0x5AA7000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-95072256                           0x5AAB000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-98021712                           0x5D7B150                          SHA256 hash constants, little endian
-98026520                           0x5D7C418                          CRC32 polynomial table, little endian
-99400144                           0x5ECB9D0                          CRC32 polynomial table, little endian
-99867876                           0x5F3DCE4                          AES S-Box
-99868644                           0x5F3DFE4                          AES S-Box
-100242628                          0x5F994C4                          AES S-Box
-103985152                          0x632B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-104001536                          0x632F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-105193272                          0x6451F38                          CRC32 polynomial table, little endian
-109080576                          0x6807000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-109096960                          0x680B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-112058880                          0x6ADE200                          SHA256 hash constants, little endian
-112105852                          0x6AE997C                          CRC32 polynomial table, little endian
-113481328                          0x6C39670                          CRC32 polynomial table, little endian
-113949792                          0x6CABC60                          AES S-Box
-113950560                          0x6CABF60                          AES S-Box
-114319388                          0x6D0601C                          AES S-Box
-118091776                          0x709F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-118108160                          0x70A3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-122081264                          0x746CFF0                          SHA256 hash constants, little endian
-122229072                          0x7491150                          CRC32 polynomial table, little endian
-122286416                          0x749F150                          CRC32 polynomial table, little endian
-122439188                          0x74C4614                          CRC32 polynomial table, little endian
-123741528                          0x7602558                          CRC32 polynomial table, little endian
-123745904                          0x7603670                          AES S-Box
-123746672                          0x7603970                          AES S-Box
-123809104                          0x7612D50                          AES S-Box
-123809616                          0x7612F50                          AES S-Box
-123830264                          0x7617FF8                          AES S-Box
-128053248                          0x7A1F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-128069632                          0x7A23000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-131019088                          0x7CF3150                          SHA256 hash constants, little endian
-131023896                          0x7CF4418                          CRC32 polynomial table, little endian
-132397520                          0x7E439D0                          CRC32 polynomial table, little endian
-132865252                          0x7EB5CE4                          AES S-Box
-132866020                          0x7EB5FE4                          AES S-Box
-133240004                          0x7F114C4                          AES S-Box
-136982528                          0x82A3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-136998912                          0x82A7000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-139965584                          0x857B490                          SHA256 hash constants, little endian
-139970392                          0x857C758                          CRC32 polynomial table, little endian
-141344016                          0x86CBD10                          CRC32 polynomial table, little endian
-141811796                          0x873E054                          AES S-Box
-141812564                          0x873E354                          AES S-Box
-142185908                          0x87995B4                          AES S-Box
-145928192                          0x8B2B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-145944576                          0x8B2F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-146206728                          0x8B6F008                          JPEG image, total size: 7951 bytes
-146321408                          0x8B8B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-146337792                          0x8B8F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-146518016                          0x8BBB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-146534400                          0x8BBF000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-146812928                          0x8C03000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-146845696                          0x8C0B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-146993152                          0x8C2F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147009536                          0x8C33000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147222528                          0x8C67000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147238912                          0x8C6B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147386368                          0x8C8F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147402752                          0x8C93000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147746816                          0x8CE7000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-147763200                          0x8CEB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-151924736                          0x90E3000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-151941120                          0x90E7000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152137728                          0x9117000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152154112                          0x911B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-152361424                          0x914D9D0                          SHA256 hash constants, little endian
-152530944                          0x9177000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-152547328                          0x917B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152687535                          0x919D3AF                          AES S-Box
-152687791                          0x919D4AF                          AES S-Box
-152711608                          0x91A31B8                          SHA256 hash constants, little endian
-152776704                          0x91B3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152793088                          0x91B7000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152973312                          0x91E3000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-152989696                          0x91E7000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-153153536                          0x920F000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-154333304                          0x932F078                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-154923008                          0x93BF000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-155207872                          0x94048C0                          PEM public key
-155237388                          0x940BC0C                          PEM certificate
-155238700                          0x940C12C                          PEM certificate
-155241712                          0x940CCF0                          PEM private key
-155243424                          0x940D3A0                          PEM certificate
-155244640                          0x940D860                          PEM private key
-155246352                          0x940DF10                          PEM certificate
-155247658                          0x940E42A                          PEM certificate
-155248972                          0x940E94C                          PEM certificate
-155250279                          0x940EE67                          PEM certificate
-155255872                          0x9410440                          SHA256 hash constants, little endian
-155258132                          0x9410D14                          PEM certificate
-155259620                          0x94112E4                          PEM certificate
-155261112                          0x94118B8                          PEM certificate
-155398144                          0x9433000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-155414528                          0x9437000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-155561984                          0x945B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-155578368                          0x945F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-155774976                          0x948F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-157582624                          0x9648520                          SHA256 hash constants, little endian
-158227080                          0x96E5A88                          CRC32 polynomial table, little endian
-158231176                          0x96E6A88                          CRC32 polynomial table, big endian
-158356808                          0x9705548                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-160685520                          0x993DDD0                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-161941792                          0x9A70920                          SHA256 hash constants, little endian
-162357095                          0x9AD5F67                          Copyright text: "Copyright 1995-2012 Mark Adler "
-162357544                          0x9AD6128                          CRC32 polynomial table, little endian
-162361640                          0x9AD7128                          CRC32 polynomial table, big endian
-162639256                          0x9B1AD98                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-163328000                          0x9BC3000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-165228544                          0x9D93000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-165244928                          0x9D97000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-167243776                          0x9F7F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-167260160                          0x9F83000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-167440384                          0x9FAF000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-167456768                          0x9FB3000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-167489536                          0x9FBB000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-167882752                          0xA01B000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-168013824                          0xA03B000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-168210432                          0xA06B000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-168472576                          0xA0AB000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-168488960                          0xA0AF000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-168636416                          0xA0D3000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-168652800                          0xA0D7000                          ELF binary, 32-bit executable, Tensilica Xtensa for System-V (Unix), little endian
-169766912                          0xA1E7000                          ELF binary, 32-bit executable, Tensilica Xtensa for System-V (Unix), little endian
-169783296                          0xA1EB000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-170078208                          0xA233000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-170094592                          0xA237000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-170154489                          0xA2459F9                          AES S-Box
-170242048                          0xA25B000                          ELF binary, 32-bit shared object, ARM for System-V (Unix), little endian
-170258432                          0xA25F000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-170405888                          0xA283000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-170422272                          0xA287000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-170487808                          0xA297000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-170799104                          0xA2E3000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-172660138                          0xA4A95AA                          Copyright text: "Copyright (c) 1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2"
-173453312                          0xA56B000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-173897628                          0xA5D779C                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-174010368                          0xA5F3000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-181434856                          0xAD079E8                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-190848536                          0xB601E18                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-204500648                          0xC306EA8                          SHA256 hash constants, little endian
-205410144                          0xC3E4F60                          AES S-Box
-205731712                          0xC433780                          CRC32 polynomial table, little endian
-209078264                          0xC7647F8                          AES S-Box
-209078776                          0xC7649F8                          AES S-Box
-209087440                          0xC766BD0                          CRC32 polynomial table, little endian
-209091536                          0xC767BD0                          CRC32 polynomial table, big endian
-213499280                          0xCB9BD90                          CRC32 polynomial table, little endian
-213503376                          0xCB9CD90                          CRC32 polynomial table, big endian
-214803528                          0xCCDA448                          AES S-Box
-260845568                          0xF8C3000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-260960256                          0xF8DF000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-261524732                          0xF968CFC                          SHA256 hash constants, little endian
-261525640                          0xF969088                          AES S-Box
-261525896                          0xF969188                          AES S-Box
-261959680                          0xF9D3000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-261992448                          0xF9DB000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-262041600                          0xF9E7000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-262139904                          0xF9FF000                          ELF binary, 32-bit executable, ARM for Linux, little endian
-262189056                          0xFA0B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-262385664                          0xFA3B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-262713344                          0xFA8B000                          ELF binary, 64-bit shared object, ARM 64-bit for System-V (Unix), little endian
-263565312                          0xFB5B000                          ELF binary, 32-bit executable, ARM for System-V (Unix), little endian
-266516544                          0xFE2B840                          CRC32 polynomial table, little endian
-266551712                          0xFE341A0                          SHA256 hash constants, little endian
-267865304                          0xFF74CD8                          Copyright text: "Copyright (c) 1992-2006 by P.J. Plauger, licensed by Dinkumware, Ltd. ALL RIGHTS RESERVED."
-271200256                          0x102A3000                         ELF binary, 32-bit executable, x86 for System-V (Unix), little endian
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-[+] Extraction of pem_certificate data at offset 0x3256DD completed successfully
-[+] Extraction of pem_certificate data at offset 0x3494F6 completed successfully
-[+] Extraction of pem_certificate data at offset 0x356D2C completed successfully
-[+] Extraction of pem_certificate data at offset 0x3751B4 completed successfully
-[+] Extraction of pem_certificate data at offset 0x3851B4 completed successfully
-[+] Extraction of pem_certificate data at offset 0x39AD75 completed successfully
-[+] Extraction of pem_certificate data at offset 0x3A6D2C completed successfully
-[+] Extraction of pem_certificate data at offset 0x4373B9 completed successfully
-[+] Extraction of pem_certificate data at offset 0x44B01B completed successfully
-[+] Extraction of pem_certificate data at offset 0x48F55F completed successfully
-[+] Extraction of pem_certificate data at offset 0x157A075 completed successfully
-[+] Extraction of pem_certificate data at offset 0x157A941 completed successfully
-[+] Extraction of jpeg data at offset 0x8B6F008 completed successfully
-[+] Extraction of pem_public_key data at offset 0x94048C0 completed successfully
-[+] Extraction of pem_certificate data at offset 0x940BC0C completed successfully
-[+] Extraction of pem_certificate data at offset 0x940C12C completed successfully
-[+] Extraction of pem_private_key data at offset 0x940CCF0 completed successfully
-[+] Extraction of pem_certificate data at offset 0x940D3A0 completed successfully
-[+] Extraction of pem_private_key data at offset 0x940D860 completed successfully
-[+] Extraction of pem_certificate data at offset 0x940DF10 completed successfully
-[+] Extraction of pem_certificate data at offset 0x940E42A completed successfully
-[+] Extraction of pem_certificate data at offset 0x940E94C completed successfully
-[+] Extraction of pem_certificate data at offset 0x940EE67 completed successfully
-[+] Extraction of pem_certificate data at offset 0x9410D14 completed successfully
-[+] Extraction of pem_certificate data at offset 0x94112E4 completed successfully
-[+] Extraction of pem_certificate data at offset 0x94118B8 completed successfully
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-Analyzed 1 file for 85 file signatures (187 magic patterns) in 1.9 seconds
-```
-
-### Modem image and extraction files
-
-```text
-analysis/modem/images/NON-HLOS.bin	271495168 bytes
-analysis/modem/modem-extraction.log	34709 bytes
-analysis/modem/modem-file-list.txt	0 bytes
-analysis/modem/modem-image-candidates.txt	0 bytes
-```
-
-- `analysis/partitions`
-- `analysis/standalone`
-- `analysis/vendor`
-- `analysis/odm`
-- `analysis/system`
-- `analysis/system_ext`
-- `analysis/product`
-- `analysis/vendor_dlkm`
-- `analysis/system_dlkm`
-- `analysis/odm_dlkm`
-- `analysis/boot/unpacked`
-- `analysis/vendor_boot/unpacked`
-- `analysis/modem/extracted`
-- `analysis/modem/binwalk`
-
-## Requested files
-
-| Filename | Status | Stock-ROM path | Size | SHA-256 |
-|---|---|---|---:|---|
-| `amss20.bin` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/amss20.bin` | 4352144 | `dd8d8355b368af77fefd25f7b8d5b66476a042427f98365242973f438577262e` |
-| `android.hardware.wifi.supplicant@1.0.so` | **NOT FOUND** | — | — | — |
-| `android.hardware.wifi.supplicant@1.1.so` | **NOT FOUND** | — | — | — |
-| `android.hardware.wifi.supplicant@1.2.so` | **NOT FOUND** | — | — | — |
-| `android.hardware.wifi.supplicant@1.3.so` | **NOT FOUND** | — | — | — |
-| `bd_j11.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11.elf` | 57868 | `a361f4bdca25254cea5a06167b90401f5dadef2e1ce424b3bccbaa0d97255fa3` |
-| `bd_j11_b.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11_b.elf` | 57868 | `6a941adc038e743cfc37fd35cbba738107f14a431b1569dd8380c4e35c1e5b49` |
-| `bd_j11gl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11gl.elf` | 57868 | `7705cc66ff165dd8ce3116263426c8e7b689df2cda24e91c8dfe8e3461cff554` |
-| `bd_j11in.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11in.elf` | 57868 | `2be13bd4f9e8e9c3f06e5aa185c2e70ca39e0e826ddade40ba00ec44df0de443` |
-| `bd_j1_b.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1_b.elf` | 57852 | `0dd172cc73a460ec7fe70cc62d66da5ccccd74dbbafc44d6bb41a3a09ef4b942` |
-| `bd_j1gl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1gl.elf` | 57856 | `9afe987b04a3fc8bef44c1211c6c27b38ac052e9234ad9aff5f36beca070bb1b` |
-| `bd_j1in.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1in.elf` | 57856 | `1426c2d3725f286d3d873467b34f02b304b16da00cb37e929c05dd60bf1dea67` |
-| `bd_j1s.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1s.elf` | 57884 | `18ff7b7f918117d875512096f9eff4de3d00d41ddb01591640a1c46076e13717` |
-| `bd_j2s.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j2s.elf` | 57908 | `75c1589a9eef4c217c3c4e6c33c3dfefd868c6a28bdd126defd3abdb8042e26f` |
-| `bd_j3s.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3s.elf` | 58040 | `a0a6d6cfcd86fc0605a644460990b595bb6adbab32bb4cf891bd18384ae9a2d5` |
-| `bd_j3sgl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3sgl.elf` | 57968 | `83407844ea080f66eb6dd323e2cb60f4670e7f41b18dbec17489935079359c2d` |
-| `bd_j3sin.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3sin.elf` | 57984 | `9a768cca857978f74286cbe239c713723c40526bba17e29106884399c59bbd53` |
-| `bd_k11a.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11a.elf` | 57896 | `ac9052fe43f80c5a35f7c6404f427704825a144e01e5a941dd8b8a4f4bc76e43` |
-| `bd_k11agl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11agl.elf` | 57936 | `7b4ae99123fe707f879f38287588dda47a63af7d170a62b9ea2fae0253a43eb5` |
-| `bd_k11ain.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11ain.elf` | 57932 | `d86423272417b4ca6e2e3e37ece2f0293b28164c814129e1feb4f2dee01c986c` |
-| `bd_k81.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k81.elf` | 57908 | `d982af0adc4501d199956e627a5000e8ca638e1061f8c932c41860922f8ff6a9` |
-| `bd_k81a.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k81a.elf` | 57908 | `a5c99867d398b4e8773d106100e8575e1b3c29b8e18921dae50029b1253eac06` |
-| `bd_l3a.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l3a.elf` | 57844 | `3e565ac62dbab31307864d646229d1d24ee80172e394b77f1ea8493cc3a888f3` |
-| `bd_l3agl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l3agl.elf` | 57844 | `8998548b7d4757e3be1f15f4f67f7551550bf780191952a8ebd46a244c656d6d` |
-| `bd_l81a.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l81a.elf` | 57868 | `fc3100d41d81cf7ffc0cfe8cf80e3a4db2666fa433c75ab51c15df30da69896f` |
-| `bd_m82.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82.elf` | 57928 | `3a1defd42ea1db714c151eda2300cace84ecd91e6a4f2581ef2c0f5afc85f831` |
-| `bd_m82gl.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82gl.elf` | 57932 | `38ac11c874a506c9f44b2d55df431a81fd965f9d61b69fff9a6ac2104277a742` |
-| `bd_m82in.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82in.elf` | 57928 | `a5688eaa41cfe5fb2aba6f16146366ff9775a77e7554437096f618c4c02e6f0c` |
-| `bdwlan.e01` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e01` | 57868 | `9238b0dd86185ed51eab9003fa060417ec6e124644fd5195b5e2c59e34620ba0` |
-| `bdwlan.e02` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e02` | 57868 | `130bf96b11a60de9ba743046efea77fcabd28e3e7a4f8fb35b872fe25249aa51` |
-| `bdwlan.e03` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e03` | 57868 | `6a73603c783f0eb86bbe743daf3d52e146c0690a7e4992268ef11eb3eede63b9` |
-| `bdwlan.e04` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e04` | 57868 | `622c2ac1f4e44eec9bc8f8a31d32628964895cb24f002839d2da6116b691f302` |
-| `bdwlan.e05` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e05` | 57868 | `c55f09a553c05e45037c4cb79f0393519c6b0f77bcb6b4005cb61a465e09e229` |
-| `bdwlan.e06` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e06` | 57868 | `b00472e015c5860ba597bec1a51112288e7512216479be681aaaebe3836c26f5` |
-| `bdwlan.e07` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e07` | 57868 | `07456dee09e268ad55335b8a34f7df199965a7938557e44e853435724844c2bf` |
-| `bdwlan.e08` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e08` | 57868 | `2c816426e68d45bb636c3b8e61ca1ee80efe7638c0c0eda988e59a2f3038bfd3` |
-| `bdwlan.e09` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e09` | 57868 | `76bcfba75a7bd50cb6886088861a533da93ca73b1ccae922f246bc9c391ba054` |
-| `bdwlan.e0a` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0a` | 57868 | `4c20a41471fcd134de12b8065bc31a6f7b7b7afb7789714ac6496bd58dc1303c` |
-| `bdwlan.e0b` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0b` | 57868 | `7d757889110dc0e73f75c9f291be6f9d13d646f7e163f9fab152b9fd2b63564d` |
-| `bdwlan.e0c` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0c` | 57868 | `1763ec7e64254d27e0531c1a01440b5a5ebfefd4972b0b41e03d8255d18e075b` |
-| `bdwlan.e0d` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0d` | 57868 | `a33fa183abd0dcc73ba66b6cfdb42e0af255da5fbda871b0b893a284292e5fd1` |
-| `bdwlan.e0e` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0e` | 57868 | `d709b6073b2c2c0bd30363212f44173890c6b859f4add5e4363ab424c2a55511` |
-| `bdwlan.e0f` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0f` | 57868 | `0925e7661ebbc0f7e77f62f0444a71dd1506ef3cc8aa5172a3c919d07330eddd` |
-| `bdwlan.e10` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e10` | 57868 | `11fb760608e6fce00575b4bf74ebc5d4cd24f20b397ae013991311c3386e5a49` |
-| `bdwlan.e11` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e11` | 57868 | `5bd12a6954921cc16ff3a2c489c61d89e2e175257b68d822d0e192f1c52d3c22` |
-| `bdwlan.e12` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e12` | 57868 | `0a6692e0ef8c501be2d86dd46f0cf3649ce1084ac857e034a2da46660ea0400d` |
-| `bdwlan.e13` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e13` | 57868 | `dd526e56c88d8e7c1a3e5dc07339135fb35e53d86fab892d22d6f56d955f4a33` |
-| `bdwlan.e14` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e14` | 57868 | `818f95efd923ed0a7dd9f3af62d0b981eabec769df2b7e3b0e31920eace8203b` |
-| `bdwlan.e15` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e15` | 57868 | `b16f6b18dd54b56e7aad9bdb3aff34106209bf3b79b38ffe176bdccdc2c70007` |
-| `bdwlan.e16` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e16` | 57868 | `35b35a9f753342f35d7e09735a8d5e31744525c0a5f8bf26c6206e026d816567` |
-| `bdwlan.e17` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e17` | 57868 | `274c67ba2239e0ce5579e6a39f75c8596f91ebc6a8125ccae49dd0b3823173e4` |
-| `bdwlan.e18` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e18` | 57868 | `bf1d9a4772cfad280187d5872f95bdab14b6d47b3e0a6086ef090529487681a3` |
-| `bdwlan.e25` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e25` | 57868 | `4a4e34c016142bd4681f6b1ce2519429fd736225e1fac97d8ebe0750a9083e50` |
-| `bdwlan.elf` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.elf` | 57868 | `a3ee9de2c77edd268c023eaae55a79177df5619ba2f0be252232919dae549f4f` |
-| `cnss-daemon` | **FOUND** | `analysis/partitions/vendor/bin/cnss-daemon` | 99472 | `839640148eff9d36cc8de5b4e397f8aae1c58d667ec3c50261a9fcdd2c54d31b` |
-| `cnss-daemon.rc` | **NOT FOUND** | — | — | — |
-| `hostapd` | **FOUND** | `analysis/partitions/vendor/bin/hw/hostapd` | 1180392 | `121b0f3538e61ff6c19bcf6669c0cd3045e6d56c91d443bc8e7e02d7eac9e133` |
-| `libdl_android.so` | **FOUND** | `analysis/partitions/system/system/lib/bootstrap/libdl_android.so` | 3044 | `5e0cec41cea3394991f427062a3b7ed9b49f3be3fbc0a4818dc51e6a89354459` |
-| `libdl_android.so` | **FOUND** | `analysis/partitions/system/system/lib64/bootstrap/libdl_android.so` | 10024 | `38238a7e49cbe33d033f6e718ea7f0e688c8f671c8e4bc7c780f70a3592c424d` |
-| `libwifi-hal.so` | **FOUND** | `analysis/partitions/vendor/lib64/libwifi-hal.so` | 460792 | `ccf6b72ed707f634cfa96d7f27c3fc4d88ee581259d33ae1defe7f7fe347ea21` |
-| `m3.bin` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/m3.bin` | 266684 | `936a00c4eb759caa321af63946cb2541bafee19f9066ca1af5dbf94e164ba61b` |
-| `qca_cld3_qca6390.ko` | **FOUND** | `analysis/partitions/vendor/lib/modules/qca_cld3_qca6390.ko` | 11363408 | `714fb8d91b395f1d0a24644d99a6325688e49d967c1d10e8e661f53a78d66186` |
-| `qca_cld3_qca6490.ko` | **FOUND** | `analysis/partitions/vendor/lib/modules/qca_cld3_qca6490.ko` | 11558024 | `da32a837833718b33efa3ba781d7f843fb0ec4a079f806f4ed57e0c889e889b6` |
-| `regdb.bin` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/regdb.bin` | 19348 | `296b4603d3fe6ac6f0661534e9795d8ade40ea6d43f8ab8e7eefe8ebdcab54f9` |
-| `regdb_j11.bin` | **FOUND** | `analysis/modem/extracted/NON-HLOS/image/qca6390/regdb_j11.bin` | 19348 | `536859e4ebd5073ff32f56dd3dd06fae8177a564bd0492b079d7bc8b6fc5072f` |
-| `rmt_storage` | **FOUND** | `analysis/partitions/vendor/bin/rmt_storage` | 38440 | `66b874d9be521747b78af90937bcb9bbda53c6f300410c318ca02fc08893d0ae` |
-| `vendor.qti.rmt_storage.rc` | **FOUND** | `analysis/partitions/vendor/etc/init/vendor.qti.rmt_storage.rc` | 255 | `e43198fb1fbdac63e8439d1445d9068d5a2c168a7daeb8683c3168e1155d0169` |
-| `wcnss_qcom_cfg.ini` | **FOUND** | `analysis/partitions/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini` | 11665 | `0fcf52557412137d549e59dfabbf3dc1cd56bdb9101b7321047ec9ac19f98459` |
-| `wlan_mac.bin` | **NOT FOUND** | — | — | — |
-| `wlan_setup.rc` | **NOT FOUND** | — | — | — |
-| `wpa_supplicant` | **FOUND** | `analysis/partitions/vendor/bin/hw/wpa_supplicant` | 3344128 | `006ed7f0b9c82df4951bdd6c070fddda1754c389cf5ff11e409e17860b2b63d8` |
-| `wpa_supplicant.conf` | **FOUND** | `analysis/partitions/vendor/etc/wifi/wpa_supplicant.conf` | 142 | `53c1bef3ce121556093f2aa67c003534996618e29e97cfd3d3b11aa80e9ec951` |
-| `wpa_supplicant.rc` | **NOT FOUND** | — | — | — |
-| `wpa_supplicant_overlay.conf` | **FOUND** | `analysis/partitions/vendor/etc/wifi/wpa_supplicant_overlay.conf` | 316 | `79c157080145c305fad51b7fff4e69796d452b871c4ca641fc86f7e5246fee82` |
-
-## Additional board firmware files
-
-| Filename | Stock-ROM path | Size | SHA-256 |
+| Original source | Repository copy | Bytes | SHA-256 |
 |---|---|---:|---|
-| — | No additional bd_*.elf files found | — | — |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/Data.msc | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/Data.msc | 646503 | 6edebe977c44408d52072efde6d018abc5a2dda0ecf0e670e83792e382b3ff2a |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/amss20.bin | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/amss20.bin | 4352144 | dd8d8355b368af77fefd25f7b8d5b66476a042427f98365242973f438577262e |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j11.elf | 57868 | a361f4bdca25254cea5a06167b90401f5dadef2e1ce424b3bccbaa0d97255fa3 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11_b.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j11_b.elf | 57868 | 6a941adc038e743cfc37fd35cbba738107f14a431b1569dd8380c4e35c1e5b49 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11gl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j11gl.elf | 57868 | 7705cc66ff165dd8ce3116263426c8e7b689df2cda24e91c8dfe8e3461cff554 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j11in.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j11in.elf | 57868 | 2be13bd4f9e8e9c3f06e5aa185c2e70ca39e0e826ddade40ba00ec44df0de443 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1_b.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j1_b.elf | 57852 | 0dd172cc73a460ec7fe70cc62d66da5ccccd74dbbafc44d6bb41a3a09ef4b942 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1gl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j1gl.elf | 57856 | 9afe987b04a3fc8bef44c1211c6c27b38ac052e9234ad9aff5f36beca070bb1b |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1in.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j1in.elf | 57856 | 1426c2d3725f286d3d873467b34f02b304b16da00cb37e929c05dd60bf1dea67 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j1s.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j1s.elf | 57884 | 18ff7b7f918117d875512096f9eff4de3d00d41ddb01591640a1c46076e13717 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j2s.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j2s.elf | 57908 | 75c1589a9eef4c217c3c4e6c33c3dfefd868c6a28bdd126defd3abdb8042e26f |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3s.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j3s.elf | 58040 | a0a6d6cfcd86fc0605a644460990b595bb6adbab32bb4cf891bd18384ae9a2d5 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3sgl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j3sgl.elf | 57968 | 83407844ea080f66eb6dd323e2cb60f4670e7f41b18dbec17489935079359c2d |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_j3sin.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_j3sin.elf | 57984 | 9a768cca857978f74286cbe239c713723c40526bba17e29106884399c59bbd53 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11a.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_k11a.elf | 57896 | ac9052fe43f80c5a35f7c6404f427704825a144e01e5a941dd8b8a4f4bc76e43 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11agl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_k11agl.elf | 57936 | 7b4ae99123fe707f879f38287588dda47a63af7d170a62b9ea2fae0253a43eb5 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k11ain.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_k11ain.elf | 57932 | d86423272417b4ca6e2e3e37ece2f0293b28164c814129e1feb4f2dee01c986c |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k81.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_k81.elf | 57908 | d982af0adc4501d199956e627a5000e8ca638e1061f8c932c41860922f8ff6a9 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_k81a.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_k81a.elf | 57908 | a5c99867d398b4e8773d106100e8575e1b3c29b8e18921dae50029b1253eac06 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l3a.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_l3a.elf | 57844 | 3e565ac62dbab31307864d646229d1d24ee80172e394b77f1ea8493cc3a888f3 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l3agl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_l3agl.elf | 57844 | 8998548b7d4757e3be1f15f4f67f7551550bf780191952a8ebd46a244c656d6d |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_l81a.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_l81a.elf | 57868 | fc3100d41d81cf7ffc0cfe8cf80e3a4db2666fa433c75ab51c15df30da69896f |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_m82.elf | 57928 | 3a1defd42ea1db714c151eda2300cace84ecd91e6a4f2581ef2c0f5afc85f831 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82gl.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_m82gl.elf | 57932 | 38ac11c874a506c9f44b2d55df431a81fd965f9d61b69fff9a6ac2104277a742 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bd_m82in.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bd_m82in.elf | 57928 | a5688eaa41cfe5fb2aba6f16146366ff9775a77e7554437096f618c4c02e6f0c |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e01 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e01 | 57868 | 9238b0dd86185ed51eab9003fa060417ec6e124644fd5195b5e2c59e34620ba0 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e02 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e02 | 57868 | 130bf96b11a60de9ba743046efea77fcabd28e3e7a4f8fb35b872fe25249aa51 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e03 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e03 | 57868 | 6a73603c783f0eb86bbe743daf3d52e146c0690a7e4992268ef11eb3eede63b9 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e04 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e04 | 57868 | 622c2ac1f4e44eec9bc8f8a31d32628964895cb24f002839d2da6116b691f302 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e05 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e05 | 57868 | c55f09a553c05e45037c4cb79f0393519c6b0f77bcb6b4005cb61a465e09e229 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e06 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e06 | 57868 | b00472e015c5860ba597bec1a51112288e7512216479be681aaaebe3836c26f5 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e07 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e07 | 57868 | 07456dee09e268ad55335b8a34f7df199965a7938557e44e853435724844c2bf |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e08 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e08 | 57868 | 2c816426e68d45bb636c3b8e61ca1ee80efe7638c0c0eda988e59a2f3038bfd3 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e09 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e09 | 57868 | 76bcfba75a7bd50cb6886088861a533da93ca73b1ccae922f246bc9c391ba054 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0a | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0a | 57868 | 4c20a41471fcd134de12b8065bc31a6f7b7b7afb7789714ac6496bd58dc1303c |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0b | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0b | 57868 | 7d757889110dc0e73f75c9f291be6f9d13d646f7e163f9fab152b9fd2b63564d |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0c | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0c | 57868 | 1763ec7e64254d27e0531c1a01440b5a5ebfefd4972b0b41e03d8255d18e075b |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0d | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0d | 57868 | a33fa183abd0dcc73ba66b6cfdb42e0af255da5fbda871b0b893a284292e5fd1 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0e | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0e | 57868 | d709b6073b2c2c0bd30363212f44173890c6b859f4add5e4363ab424c2a55511 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e0f | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e0f | 57868 | 0925e7661ebbc0f7e77f62f0444a71dd1506ef3cc8aa5172a3c919d07330eddd |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e10 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e10 | 57868 | 11fb760608e6fce00575b4bf74ebc5d4cd24f20b397ae013991311c3386e5a49 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e11 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e11 | 57868 | 5bd12a6954921cc16ff3a2c489c61d89e2e175257b68d822d0e192f1c52d3c22 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e12 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e12 | 57868 | 0a6692e0ef8c501be2d86dd46f0cf3649ce1084ac857e034a2da46660ea0400d |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e13 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e13 | 57868 | dd526e56c88d8e7c1a3e5dc07339135fb35e53d86fab892d22d6f56d955f4a33 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e14 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e14 | 57868 | 818f95efd923ed0a7dd9f3af62d0b981eabec769df2b7e3b0e31920eace8203b |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e15 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e15 | 57868 | b16f6b18dd54b56e7aad9bdb3aff34106209bf3b79b38ffe176bdccdc2c70007 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e16 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e16 | 57868 | 35b35a9f753342f35d7e09735a8d5e31744525c0a5f8bf26c6206e026d816567 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e17 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e17 | 57868 | 274c67ba2239e0ce5579e6a39f75c8596f91ebc6a8125ccae49dd0b3823173e4 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e18 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e18 | 57868 | bf1d9a4772cfad280187d5872f95bdab14b6d47b3e0a6086ef090529487681a3 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.e25 | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.e25 | 57868 | 4a4e34c016142bd4681f6b1ce2519429fd736225e1fac97d8ebe0750a9083e50 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/bdwlan.elf | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/bdwlan.elf | 57868 | a3ee9de2c77edd268c023eaae55a79177df5619ba2f0be252232919dae549f4f |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/m3.bin | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/m3.bin | 266684 | 936a00c4eb759caa321af63946cb2541bafee19f9066ca1af5dbf94e164ba61b |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/regdb.bin | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/regdb.bin | 19348 | 296b4603d3fe6ac6f0661534e9795d8ade40ea6d43f8ab8e7eefe8ebdcab54f9 |
+| analysis/modem/extracted/NON-HLOS/image/qca6390/regdb_j11.bin | stock-rom-wlan/extracted/NON-HLOS/image/qca6390/regdb_j11.bin | 19348 | 536859e4ebd5073ff32f56dd3dd06fae8177a564bd0492b079d7bc8b6fc5072f |
+| analysis/partitions/product/media/theme/miui_mod_icons/com.android.settings.wifi.WifiProvider.png | stock-rom-wlan/partitions/product/media/theme/miui_mod_icons/com.android.settings.wifi.WifiProvider.png | 29018 | c2ab12f5207dba108dc290ae2b3197b64e5041d810ec6b7cb2bd4fbaaccce74f |
+| analysis/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_ap_off.png | stock-rom-wlan/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_ap_off.png | 7585 | 0f7d2ac7eb9d8e0a1abd5bc74eb075d0c4cce74771d5a94646d63ca152feed06 |
+| analysis/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_ap_on.png | stock-rom-wlan/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_ap_on.png | 6744 | e9e54c32dc2370a3ed44fa5467fc03997391d7c52b476bd241a81db6dd56f173 |
+| analysis/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_off.png | stock-rom-wlan/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_off.png | 7219 | adbe78da41d25252752863bed6a2c806a2c189cad032aebce41368084ed67d01 |
+| analysis/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_on.png | stock-rom-wlan/partitions/product/media/theme/miui_mod_icons/status_bar_toggle_wifi_on.png | 6436 | 55054a6e2f02e6b73b5969e9fce3247472a8b811017b66aec3c95a9a2d24db4e |
+| analysis/partitions/product/overlay/AospWifiResOverlay.apk | stock-rom-wlan/partitions/product/overlay/AospWifiResOverlay.apk | 12638 | 332e4ae0aec9b95012a23125350b20592584e3aefa53b97ef8efce3b24d47c31 |
+| analysis/partitions/product/overlay/AospWifiResOverlay_mainline.apk | stock-rom-wlan/partitions/product/overlay/AospWifiResOverlay_mainline.apk | 12638 | c055ea55ae6a6a5be558f4e9d6dd0fcf2b822c2a8d30cdb79895a3ec11419686 |
+| analysis/partitions/product/overlay/WifiResCommonMainline_Sys.apk | stock-rom-wlan/partitions/product/overlay/WifiResCommonMainline_Sys.apk | 12638 | bee81e79e4d522fc94bc080556d1a2d3f0fe4b28365e88e4cb1567fe7f7922fe |
+| analysis/partitions/product/overlay/WifiResCommon_Sys.apk | stock-rom-wlan/partitions/product/overlay/WifiResCommon_Sys.apk | 12638 | 1de94564b39fe206907ffd6dba1c82a44ed85009feeba7d820990b92bde0c549 |
+| analysis/partitions/system/system/apex/com.android.wifi.capex | stock-rom-wlan/partitions/system/system/apex/com.android.wifi.capex | 3269163 | 41305e1ddeddd93ed60628fbaf703bb9bf315e75dabae82c439f6ac828518ba1 |
+| analysis/partitions/system/system/bin/wificond | stock-rom-wlan/partitions/system/system/bin/wificond | 424472 | 64b20950e9d2822d864396b5a163d1fbd6f5731f8b23c28af9cd507498418244 |
+| analysis/partitions/system/system/etc/init/wifi.rc | stock-rom-wlan/partitions/system/system/etc/init/wifi.rc | 5821 | 1d2b56a4610d0ba3a02b0abe0ab05fc99b2fb8a1ce59346f16137e35de636236 |
+| analysis/partitions/system/system/etc/init/wificond.rc | stock-rom-wlan/partitions/system/system/etc/init/wificond.rc | 135 | 7ec3ef548e88bcd13577b59239ca88b594454622818e4a9190ad274b1aadee38 |
+| analysis/partitions/system/system/framework/oat/arm64/apex@com.android.wifi@javalib@service-wifi.jar@classes.odex | stock-rom-wlan/partitions/system/system/framework/oat/arm64/apex@com.android.wifi@javalib@service-wifi.jar@classes.odex | 11592232 | 343cb1b6e78abe562af9ef1280b93096894f220ef3d963119656ff5764c634a5 |
+| analysis/partitions/system/system/framework/oat/arm64/apex@com.android.wifi@javalib@service-wifi.jar@classes.vdex | stock-rom-wlan/partitions/system/system/framework/oat/arm64/apex@com.android.wifi@javalib@service-wifi.jar@classes.vdex | 61460 | cdf5583d4967c525ec8397208cfeb0e2399152e4f64d5e1b072869e992609ec3 |
+| analysis/partitions/system/system/lib64/android.system.wifi.keystore@1.0.so | stock-rom-wlan/partitions/system/system/lib64/android.system.wifi.keystore@1.0.so | 84360 | 23584bf2d80298e5b59dd9fea8460b8ef1467be7b5db42135a65cbcc94575549 |
+| analysis/partitions/system/system/lib64/libwifi-system-iface.so | stock-rom-wlan/partitions/system/system/lib64/libwifi-system-iface.so | 19568 | 29aa3c84ca1d18e619e4150fbfb4eb6782f2f26df82edc68b4124b769d00e2c0 |
+| analysis/partitions/system_ext/etc/forcedarkconfig/com.snda.wifilocating.json | stock-rom-wlan/partitions/system_ext/etc/forcedarkconfig/com.snda.wifilocating.json | 2841 | 89a6388a4b9b5a27536ff4c1216c902ba43efb4915cc9e5231351ec3c0ba998c |
+| analysis/partitions/system_ext/framework/miui-wifi-service.jar | stock-rom-wlan/partitions/system_ext/framework/miui-wifi-service.jar | 1536254 | 86ccae73bc1b7d484b3428341064da0fcc0b2a1d1ab63f9f6047a70f095ef4e0 |
+| analysis/partitions/system_ext/framework/oat/arm/miui-wifi-service.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/miui-wifi-service.odex | 21156 | f898d3b00555c9bbb7a180b2d75151888982a75b2950fd1b9536bc44e9a63bf9 |
+| analysis/partitions/system_ext/framework/oat/arm/miui-wifi-service.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/miui-wifi-service.vdex | 15860 | 663b18d46b4462a04e0da459557a67e7d13077b0362529c4464dde5c9bee691d |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.0-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.0-java.odex | 21156 | 0f897094f1e89e3af39a240e8ce4ac627db6511ef5325b409f9f8ec784c43f40 |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.0-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.0-java.vdex | 5524 | 9db248cb9616ad9e790490272753cb5f1f73f885047cf594e098a0d3513c2783 |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.1-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.1-java.odex | 21156 | b6a73ce0b3fe41e2e1dc5b7fe5bc6e0ddc80d5caa6463834a9b73eaf5bb473cd |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.1-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlan-V1.1-java.vdex | 6192 | a70ee1bacc035a98289e2896e76e4ad1d4a81faa0f7178191ee8ac761eb14048 |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlandata-V1-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlandata-V1-java.odex | 21156 | b84b42da43a5ec2b9d01054365b7ea246a29a741ec530f667f1578cdbbce0d08 |
+| analysis/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlandata-V1-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm/vendor.qti.hardware.data.iwlandata-V1-java.vdex | 5304 | f662f3224afdc99ce708acc3142103a9cfe4970a69fc8872116aee7144addd30 |
+| analysis/partitions/system_ext/framework/oat/arm64/miui-wifi-service.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/miui-wifi-service.odex | 21424 | 1b0e66d779a0fa9c4b52bd265e7e73d7ae20f7e115ed4672daa2729085f41387 |
+| analysis/partitions/system_ext/framework/oat/arm64/miui-wifi-service.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/miui-wifi-service.vdex | 15860 | 663b18d46b4462a04e0da459557a67e7d13077b0362529c4464dde5c9bee691d |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.0-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.0-java.odex | 21424 | 865d08aca8a5362471aa258ef82a8aa2073dccbc1bc7a543847c421bb261e1f8 |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.0-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.0-java.vdex | 5524 | 9db248cb9616ad9e790490272753cb5f1f73f885047cf594e098a0d3513c2783 |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.1-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.1-java.odex | 21424 | 14256c6e0a9917834741ea1e0d86e3b995793d94744df2454efb0dde0da9a093 |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.1-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlan-V1.1-java.vdex | 6192 | a70ee1bacc035a98289e2896e76e4ad1d4a81faa0f7178191ee8ac761eb14048 |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlandata-V1-java.odex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlandata-V1-java.odex | 21424 | 877c4d360d1c2110213cdb813c0931bc6a9766701d06336fb84259c8a388bbe0 |
+| analysis/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlandata-V1-java.vdex | stock-rom-wlan/partitions/system_ext/framework/oat/arm64/vendor.qti.hardware.data.iwlandata-V1-java.vdex | 5304 | f662f3224afdc99ce708acc3142103a9cfe4970a69fc8872116aee7144addd30 |
+| analysis/partitions/system_ext/framework/vendor.qti.hardware.data.iwlan-V1.0-java.jar | stock-rom-wlan/partitions/system_ext/framework/vendor.qti.hardware.data.iwlan-V1.0-java.jar | 948654 | a10dd1326ccab0ace56448820b556cb2e7819f9d27fc3d603a7583aaac795544 |
+| analysis/partitions/system_ext/framework/vendor.qti.hardware.data.iwlan-V1.1-java.jar | stock-rom-wlan/partitions/system_ext/framework/vendor.qti.hardware.data.iwlan-V1.1-java.jar | 1462194 | 7ef12f881328f90be1e12863483149a5d8e2e5549eea7453277824d23e48a028 |
+| analysis/partitions/system_ext/framework/vendor.qti.hardware.data.iwlandata-V1-java.jar | stock-rom-wlan/partitions/system_ext/framework/vendor.qti.hardware.data.iwlandata-V1-java.jar | 337066 | 8780c8e8f6b663bdc5c3002db0c10811a559e5809677a483b555100824a47705 |
+| analysis/partitions/system_ext/lib/com.qualcomm.qti.wifidisplayhal@1.0.so | stock-rom-wlan/partitions/system_ext/lib/com.qualcomm.qti.wifidisplayhal@1.0.so | 209316 | a8a9ed525335b307371fe454a1a7b58dacc7a8b5acddbd1a0364b7a209028169 |
+| analysis/partitions/system_ext/lib/libwificondimpl.so | stock-rom-wlan/partitions/system_ext/lib/libwificondimpl.so | 72988 | 8542b3eede991c93aef8efdaf97d2fed5e88ca84a0442e8cf9cab074c9d96d05 |
+| analysis/partitions/system_ext/lib/vendor.qti.hardware.data.iwlan@1.0.so | stock-rom-wlan/partitions/system_ext/lib/vendor.qti.hardware.data.iwlan@1.0.so | 200140 | 534b61e1fb2d74b5477cbf215a2dbef676dd5aad1cee43abb1356f94fe01c093 |
+| analysis/partitions/system_ext/lib/vendor.qti.hardware.data.iwlan@1.1.so | stock-rom-wlan/partitions/system_ext/lib/vendor.qti.hardware.data.iwlan@1.1.so | 214200 | aa01202bc6a958994c5f468d7abad02fd3efdd527fe98f74d3726a9809b8bc5a |
+| analysis/partitions/system_ext/lib/vendor.qti.hardware.data.iwlandata-V1-ndk.so | stock-rom-wlan/partitions/system_ext/lib/vendor.qti.hardware.data.iwlandata-V1-ndk.so | 86288 | 7ac0ecae12d1114b9f3b7ba53382e548f65fe751806237737f3b45a98cb19781 |
+| analysis/partitions/system_ext/lib/vendor.qti.hardware.wifidisplaysession@1.0.so | stock-rom-wlan/partitions/system_ext/lib/vendor.qti.hardware.wifidisplaysession@1.0.so | 517108 | 3d7eee04416af5ac335d8e9751634c3e26333a7c8b3f9b267becf2da7f6644ba |
+| analysis/partitions/system_ext/lib64/com.qualcomm.qti.wifidisplayhal@1.0.so | stock-rom-wlan/partitions/system_ext/lib64/com.qualcomm.qti.wifidisplayhal@1.0.so | 293456 | b7c62cf367d2787ef4fdf881b1f92e47d3a51bc0a2f1eb0deb732167d1c4e087 |
+| analysis/partitions/system_ext/lib64/libwificondimpl.so | stock-rom-wlan/partitions/system_ext/lib64/libwificondimpl.so | 113280 | 22a52798bca4954bedde6bc90fe6c018da621963201b795cabf82de62a9df680 |
+| analysis/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlan@1.0.so | stock-rom-wlan/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlan@1.0.so | 290560 | 165c2775d78e41b4dbb74f078730ecf05943c7f61cf681c4a36db54da1d50d7a |
+| analysis/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlan@1.1.so | stock-rom-wlan/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlan@1.1.so | 315040 | f065f9b4f2d8f05e5c836902f57d336202fea94a49d4b14e17ba8d09ab965400 |
+| analysis/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlandata-V1-ndk.so | stock-rom-wlan/partitions/system_ext/lib64/vendor.qti.hardware.data.iwlandata-V1-ndk.so | 123728 | 8328e9e147ab0d0f3d3fa0d9d031a6450411a5ea6b04c199ece04a34264783b2 |
+| analysis/partitions/system_ext/lib64/vendor.qti.hardware.wifidisplaysession@1.0.so | stock-rom-wlan/partitions/system_ext/lib64/vendor.qti.hardware.wifidisplaysession@1.0.so | 708808 | f5ba083ee51d6dd4bb418890b97c67b5ae845c2176eeeb2d5e7acbe647483d87 |
+| analysis/partitions/system_ext/priv-app/MiuiWifiDialog/MiuiWifiDialog.apk | stock-rom-wlan/partitions/system_ext/priv-app/MiuiWifiDialog/MiuiWifiDialog.apk | 4852602 | 419be5f044e20bec6dc950e3e65ce992ee27abf1afd7940daaaab8ff9e25f036 |
+| analysis/partitions/system_ext/priv-app/MiuiWifiDialog/oat/arm64/MiuiWifiDialog.odex | stock-rom-wlan/partitions/system_ext/priv-app/MiuiWifiDialog/oat/arm64/MiuiWifiDialog.odex | 29616 | 3e6fc67fa5feda1518786eddf405d4d4f275311c04c96c686a2954f34146f8c1 |
+| analysis/partitions/system_ext/priv-app/MiuiWifiDialog/oat/arm64/MiuiWifiDialog.vdex | stock-rom-wlan/partitions/system_ext/priv-app/MiuiWifiDialog/oat/arm64/MiuiWifiDialog.vdex | 33240 | 637af52dd97311a215821c0fc6d35e1aa95e0b3a22764302d464b9eebbc87be9 |
+| analysis/partitions/system_ext/priv-app/QtiWifiService/QtiWifiService.apk | stock-rom-wlan/partitions/system_ext/priv-app/QtiWifiService/QtiWifiService.apk | 338190 | 366ed74f09807bbcfd547f7fd5dcb9e3a8fa51b85ec0077dc7f88ee040cc43f1 |
+| analysis/partitions/system_ext/priv-app/QtiWifiService/oat/arm64/QtiWifiService.odex | stock-rom-wlan/partitions/system_ext/priv-app/QtiWifiService/oat/arm64/QtiWifiService.odex | 21424 | a762edb4233f82d5a2722f7988bc3c7cf880b74ae8af6c901f437cc72caf9399 |
+| analysis/partitions/system_ext/priv-app/QtiWifiService/oat/arm64/QtiWifiService.vdex | stock-rom-wlan/partitions/system_ext/priv-app/QtiWifiService/oat/arm64/QtiWifiService.vdex | 5956 | 09b32046c82cabf35051437b0461209e1236e2d847d8d773faa4297c824fa62a |
+| analysis/partitions/system_ext/priv-app/xrwifiservice/oat/arm64/xrwifiservice.odex | stock-rom-wlan/partitions/system_ext/priv-app/xrwifiservice/oat/arm64/xrwifiservice.odex | 17328 | 98d880c08787221121cf6090e906243e3e0d796ea547ecc605bab3680b39f8db |
+| analysis/partitions/system_ext/priv-app/xrwifiservice/oat/arm64/xrwifiservice.vdex | stock-rom-wlan/partitions/system_ext/priv-app/xrwifiservice/oat/arm64/xrwifiservice.vdex | 944 | 934b914e2c5db0ea5cf91c794b4e5477e061dfbb8af678379e6afe7adcad9485 |
+| analysis/partitions/system_ext/priv-app/xrwifiservice/xrwifiservice.apk | stock-rom-wlan/partitions/system_ext/priv-app/xrwifiservice/xrwifiservice.apk | 58099 | 453f2be9b82136ec2b21ec722526791f17c85e8dcfe0d8d817dd5928b2cdac6c |
+| analysis/partitions/vendor/app/IWlanService/IWlanService.apk | stock-rom-wlan/partitions/vendor/app/IWlanService/IWlanService.apk | 999838 | 91eff13cff9629f385da8d32a2e62d2eb344f71cab4c81c4c1347da9b750b87e |
+| analysis/partitions/vendor/app/IWlanService/oat/arm64/IWlanService.odex | stock-rom-wlan/partitions/vendor/app/IWlanService/oat/arm64/IWlanService.odex | 21424 | 4610101f8b02c02257f76fc10c71564a2b5308520f51b7cf0b6a89db4ea9fa1a |
+| analysis/partitions/vendor/app/IWlanService/oat/arm64/IWlanService.vdex | stock-rom-wlan/partitions/vendor/app/IWlanService/oat/arm64/IWlanService.vdex | 2562 | 84a71d955f6173054d4bc320d675b2e9ff6900825a669951a29792ac6d749cae |
+| analysis/partitions/vendor/bin/cnss-daemon | stock-rom-wlan/partitions/vendor/bin/cnss-daemon | 99472 | 839640148eff9d36cc8de5b4e397f8aae1c58d667ec3c50261a9fcdd2c54d31b |
+| analysis/partitions/vendor/bin/cnss_diag | stock-rom-wlan/partitions/vendor/bin/cnss_diag | 370072 | 36de35de77c68cc3ac846710b2502be35022aa9bd8b315f92438fb4f3ca90605 |
+| analysis/partitions/vendor/bin/hostapd_cli | stock-rom-wlan/partitions/vendor/bin/hostapd_cli | 86872 | 095cdcd8a3d8c1132e6e0f713ab2ddaacaba3c4d5008c44d07c9c22c263b52cf |
+| analysis/partitions/vendor/bin/hw/android.hardware.wifi@1.0-service | stock-rom-wlan/partitions/vendor/bin/hw/android.hardware.wifi@1.0-service | 463648 | 47045bf340bfe0c94de43a8904c2fc815088640c2f889cf0234a3e5646c1a9a4 |
+| analysis/partitions/vendor/bin/hw/hostapd | stock-rom-wlan/partitions/vendor/bin/hw/hostapd | 1180392 | 121b0f3538e61ff6c19bcf6669c0cd3045e6d56c91d443bc8e7e02d7eac9e133 |
+| analysis/partitions/vendor/bin/hw/vendor.xiaomi.cit.wifi@1.0-service | stock-rom-wlan/partitions/vendor/bin/hw/vendor.xiaomi.cit.wifi@1.0-service | 408008 | 46d2d12b08f1bd5048c788c3a0270f1d9980bb270bf0afa278e29612d5219513 |
+| analysis/partitions/vendor/bin/hw/wpa_supplicant | stock-rom-wlan/partitions/vendor/bin/hw/wpa_supplicant | 3344128 | 006ed7f0b9c82df4951bdd6c070fddda1754c389cf5ff11e409e17860b2b63d8 |
+| analysis/partitions/vendor/bin/qca6234-service.sh | stock-rom-wlan/partitions/vendor/bin/qca6234-service.sh | 3746 | dc4e8a4fc183c8c7804a84125c56415cda6b5390f4a8023fe8f0d769fafc0201 |
+| analysis/partitions/vendor/bin/wifidisplayhalservice | stock-rom-wlan/partitions/vendor/bin/wifidisplayhalservice | 16148 | 0c2e483125d3ab427ecdea661453a087c6df746cc03a2c19b62689ad77ae0e59 |
+| analysis/partitions/vendor/bin/wifilearner | stock-rom-wlan/partitions/vendor/bin/wifilearner | 35176 | a9708e394914374a9adddf168ee5e59f0c97e509ef4af5fb041d7e7906c0b5d5 |
+| analysis/partitions/vendor/bin/wlanramdumpcollector | stock-rom-wlan/partitions/vendor/bin/wlanramdumpcollector | 20544 | 30b86dbb9427661d68b0ed07a00529438b2b2a65d7d2c9b337f22f86cd3d40ae |
+| analysis/partitions/vendor/bin/wpa_cli | stock-rom-wlan/partitions/vendor/bin/wpa_cli | 188096 | 0a913492adf4ea709809efbe480772e4ddc78e0d7b4fea54b53b9a1a59b04935 |
+| analysis/partitions/vendor/bin/xtwifi-client | stock-rom-wlan/partitions/vendor/bin/xtwifi-client | 1081680 | 67ae684269112a0d00f2b8932165dfa07c787065409f36bed768a534a3bb07b7 |
+| analysis/partitions/vendor/bin/xtwifi-inet-agent | stock-rom-wlan/partitions/vendor/bin/xtwifi-inet-agent | 134408 | 278ff0c67d80c665981434e7fe7a43b8985478198c06fff30e509f8653e7aa97 |
+| analysis/partitions/vendor/etc/hostapd/hostapd.accept | stock-rom-wlan/partitions/vendor/etc/hostapd/hostapd.accept | 220 | 63d49422267c52cf7cb18fb00840d7f8509888f4e4ab567163720ab3a61a97ae |
+| analysis/partitions/vendor/etc/hostapd/hostapd.deny | stock-rom-wlan/partitions/vendor/etc/hostapd/hostapd.deny | 90 | 0b26120447d75d91e82442f111dda1d5c3943f6cee6dae8a1aa438f4bd99f769 |
+| analysis/partitions/vendor/etc/hostapd/hostapd_default.conf | stock-rom-wlan/partitions/vendor/etc/hostapd/hostapd_default.conf | 91059 | 3025cc6b6dc951710321a4cc25de9df691918d1d7e63b77feae54fb97e012e99 |
+| analysis/partitions/vendor/etc/init/android.hardware.wifi.supplicant-service.rc | stock-rom-wlan/partitions/vendor/etc/init/android.hardware.wifi.supplicant-service.rc | 1025 | 336a2ef996724206d4e5b8947fdb0dabaac619b4099b8acd271b9c70f555bddb |
+| analysis/partitions/vendor/etc/init/android.hardware.wifi@1.0-service.rc | stock-rom-wlan/partitions/vendor/etc/init/android.hardware.wifi@1.0-service.rc | 448 | ad76dc52f91f79c254279044067713e9beb9247917267730af7ac7dc0931a603 |
+| analysis/partitions/vendor/etc/init/com.qualcomm.qti.wifidisplayhal@1.0-service.rc | stock-rom-wlan/partitions/vendor/etc/init/com.qualcomm.qti.wifidisplayhal@1.0-service.rc | 288 | a8ac68e72fbce5e2382515961a12a82e2fe2c9dd4ad7dff05e7dcf166d28051b |
+| analysis/partitions/vendor/etc/init/hostapd.android.rc | stock-rom-wlan/partitions/vendor/etc/init/hostapd.android.rc | 996 | f485ef941305d6b0f69b2fe4dc7d7c605ce00ed81956d27f8e7bb9da604b8d39 |
+| analysis/partitions/vendor/etc/init/vendor.qti.hardware.wifi.wifilearner@1.0-service.rc | stock-rom-wlan/partitions/vendor/etc/init/vendor.qti.hardware.wifi.wifilearner@1.0-service.rc | 421 | b58d8e4450107e376d93e8470bc18f6b2b1754df7636c919d038b1b34f17a98f |
+| analysis/partitions/vendor/etc/init/vendor.xiaomi.cit.wifi@1.0-service.rc | stock-rom-wlan/partitions/vendor/etc/init/vendor.xiaomi.cit.wifi@1.0-service.rc | 146 | 51e752a56f149a4b7e2f5843d322841275cd9cebfc1bed91d8724cda2a0c615a |
+| analysis/partitions/vendor/etc/init/wlanramdumpcollector.rc | stock-rom-wlan/partitions/vendor/etc/init/wlanramdumpcollector.rc | 135 | c9e895d9e7a8e9d25f284f65d806ecd67edecba9a25874fad9db5a38c3d4b9c4 |
+| analysis/partitions/vendor/etc/permissions/android.hardware.wifi.direct.xml | stock-rom-wlan/partitions/vendor/etc/permissions/android.hardware.wifi.direct.xml | 843 | 88816300cf08cae66fb8346550d3a8cb27b7ac679827ca86ef5840aedc472cd5 |
+| analysis/partitions/vendor/etc/permissions/android.hardware.wifi.passpoint.xml | stock-rom-wlan/partitions/vendor/etc/permissions/android.hardware.wifi.passpoint.xml | 845 | 9996ae086333a6abcc7a1d124280d48e9632f02db8f38ba0bde7c529cbba6d1e |
+| analysis/partitions/vendor/etc/permissions/android.hardware.wifi.xml | stock-rom-wlan/partitions/vendor/etc/permissions/android.hardware.wifi.xml | 829 | c1315743359a2c41344582074fd6238ce22600c0b28183e2901d9075585ff0a2 |
+| analysis/partitions/vendor/etc/seccomp_policy/wifidisplayhalservice.policy | stock-rom-wlan/partitions/vendor/etc/seccomp_policy/wifidisplayhalservice.policy | 1908 | 3fb518c1c088ca4058b0be5ddde20bd5450c966fe071d83862e1f269276f7ddf |
+| analysis/partitions/vendor/etc/vintf/manifest/android.hardware.wifi.hostapd.xml | stock-rom-wlan/partitions/vendor/etc/vintf/manifest/android.hardware.wifi.hostapd.xml | 606 | 0987df34924f250448248c527127b2bb654e251a02e624156ef17b8a1158ad86 |
+| analysis/partitions/vendor/etc/vintf/manifest/android.hardware.wifi@1.0-service.xml | stock-rom-wlan/partitions/vendor/etc/vintf/manifest/android.hardware.wifi@1.0-service.xml | 313 | 5b785b5e6f63baab071ca757ec3e5bf0ee7a877186c17e2b36ce5bc63112756e |
+| analysis/partitions/vendor/etc/vintf/manifest/vendor.xiaomi.cit.wifi@1.0_manifest.xml | stock-rom-wlan/partitions/vendor/etc/vintf/manifest/vendor.xiaomi.cit.wifi@1.0_manifest.xml | 321 | 4ebce8e33deeb5e52c56cc734c8c79b8f9ba5411ece5c3f3f0e300f7e557666c |
+| analysis/partitions/vendor/etc/wifi/aoa_cldb_falcon.bin | stock-rom-wlan/partitions/vendor/etc/wifi/aoa_cldb_falcon.bin | 839856 | 8df6892ad43207351b2cfcbc9e9eb83c62b140243354a1c40c7f3440cd223614 |
+| analysis/partitions/vendor/etc/wifi/aoa_cldb_swl14.bin | stock-rom-wlan/partitions/vendor/etc/wifi/aoa_cldb_swl14.bin | 839856 | 045f45e70c31fa0affcefe32abdf5af0f1a3e3ffac43bf905c2870987466583a |
+| analysis/partitions/vendor/etc/wifi/fstman.ini | stock-rom-wlan/partitions/vendor/etc/wifi/fstman.ini | 394 | 92c5000886847fc530532733468c3623177e80183ff1fcf809d455232b0f5a79 |
+| analysis/partitions/vendor/etc/wifi/icm.conf | stock-rom-wlan/partitions/vendor/etc/wifi/icm.conf | 2897 | 735333d5598a17da313d6796079d200272b652486ddfff4ed46b34bea257142e |
+| analysis/partitions/vendor/etc/wifi/p2p_supplicant_overlay.conf | stock-rom-wlan/partitions/vendor/etc/wifi/p2p_supplicant_overlay.conf | 210 | cda092a66e59c2d1f12203ef0ba44f4790b8d411b5d4a6ba2e26f80c29c3b782 |
+| analysis/partitions/vendor/etc/wifi/passpointProfile.conf | stock-rom-wlan/partitions/vendor/etc/wifi/passpointProfile.conf | 4760 | 7f156799067ec739af7b68019bbd63555cc45fe4cf44132edf4761ddf0544a25 |
+| analysis/partitions/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini | stock-rom-wlan/partitions/vendor/etc/wifi/qca6390/WCNSS_qcom_cfg.ini | 11665 | 0fcf52557412137d549e59dfabbf3dc1cd56bdb9101b7321047ec9ac19f98459 |
+| analysis/partitions/vendor/etc/wifi/wpa_supplicant.conf | stock-rom-wlan/partitions/vendor/etc/wifi/wpa_supplicant.conf | 142 | 53c1bef3ce121556093f2aa67c003534996618e29e97cfd3d3b11aa80e9ec951 |
+| analysis/partitions/vendor/etc/wifi/wpa_supplicant_overlay.conf | stock-rom-wlan/partitions/vendor/etc/wifi/wpa_supplicant_overlay.conf | 316 | 79c157080145c305fad51b7fff4e69796d452b871c4ca641fc86f7e5246fee82 |
+| analysis/partitions/vendor/etc/wifi_diag_list.txt | stock-rom-wlan/partitions/vendor/etc/wifi_diag_list.txt | 58 | cbefafa3ef3116e2579b101023bcba5d29e369c37a5254daace02fbfc3c0da98 |
+| analysis/partitions/vendor/etc/wifibt_diag.cfg | stock-rom-wlan/partitions/vendor/etc/wifibt_diag.cfg | 624 | 934f4bb06e890248470b112464aa58a0d181582ff0bd2552c3e6beec6d46d9e1 |
+| analysis/partitions/vendor/etc/xtwifi.conf | stock-rom-wlan/partitions/vendor/etc/xtwifi.conf | 3517 | 8d55dcb5f5632f7622792b8cdb1389c9d553e8b6a41efbb6159c30f237fad437 |
+| analysis/partitions/vendor/lib/liblowi_wifihal.so | stock-rom-wlan/partitions/vendor/lib/liblowi_wifihal.so | 115948 | 992ce568365588252c50cb95096fc01e1f45b5976e01636a90af28fa31f33694 |
+| analysis/partitions/vendor/lib/libwifi-hal-ctrl.so | stock-rom-wlan/partitions/vendor/lib/libwifi-hal-ctrl.so | 6268 | d86d9c96d5bb066d8c862ac9f0c5c249e419e9f74201bc131af3fc277e3c0441 |
+| analysis/partitions/vendor/lib/libwifi-hal-qcom.so | stock-rom-wlan/partitions/vendor/lib/libwifi-hal-qcom.so | 258584 | 8145eb55593441657056a63e37bf7a9f014f220563595d74de6809fbc446d7c2 |
+| analysis/partitions/vendor/lib/libwpa_client.so | stock-rom-wlan/partitions/vendor/lib/libwpa_client.so | 13292 | a214ce5f3b2d76443714cc1ce279ff9ba356e96da746a83946ab0d51a20c3219 |
+| analysis/partitions/vendor/lib/libxtwifi_server_protocol.so | stock-rom-wlan/partitions/vendor/lib/libxtwifi_server_protocol.so | 429764 | edec1641bc5fae919a5dfcb6f0a83cd21536ee769b592e88fee970124b9e7d37 |
+| analysis/partitions/vendor/lib/libxtwifi_server_protocol_uri_v3.so | stock-rom-wlan/partitions/vendor/lib/libxtwifi_server_protocol_uri_v3.so | 611704 | d0cf1162d7c81c47e81aa337cd57c81d76bbab66889264595beb7a2ef6ad5208 |
+| analysis/partitions/vendor/lib/modules/qca_cld3_qca6390.ko | stock-rom-wlan/partitions/vendor/lib/modules/qca_cld3_qca6390.ko | 11363408 | 714fb8d91b395f1d0a24644d99a6325688e49d967c1d10e8e661f53a78d66186 |
+| analysis/partitions/vendor/lib/modules/qca_cld3_qca6490.ko | stock-rom-wlan/partitions/vendor/lib/modules/qca_cld3_qca6490.ko | 11558024 | da32a837833718b33efa3ba781d7f843fb0ec4a079f806f4ed57e0c889e889b6 |
+| analysis/partitions/vendor/lib/vendor.qti.hardware.wifidisplaysession@1.0.so | stock-rom-wlan/partitions/vendor/lib/vendor.qti.hardware.wifidisplaysession@1.0.so | 504460 | 4c04fe32bb4b6d807e319f04893dfd365b3f25b58295b6a6dd2abfb64703ffec |
+| analysis/partitions/vendor/lib/vendor.qti.hardware.wifidisplaysessionl@1.0-halimpl.so | stock-rom-wlan/partitions/vendor/lib/vendor.qti.hardware.wifidisplaysessionl@1.0-halimpl.so | 42732 | a499df552b14d9df6e912d8bbd512de92c4b63185baab257f1f138fafdf1bbb9 |
+| analysis/partitions/vendor/lib64/libkeystore-engine-wifi-hidl.so | stock-rom-wlan/partitions/vendor/lib64/libkeystore-engine-wifi-hidl.so | 20712 | c73ff1e17949b985491ab948afe2cc6a336254da4360dd0b7d800a4418ffc167 |
+| analysis/partitions/vendor/lib64/libkeystore-wifi-hidl.so | stock-rom-wlan/partitions/vendor/lib64/libkeystore-wifi-hidl.so | 15920 | b328340f417d9586d45fbe62d385636e91942b2fab8b64e118cab4860fa415b0 |
+| analysis/partitions/vendor/lib64/liblowi_wifihal.so | stock-rom-wlan/partitions/vendor/lib64/liblowi_wifihal.so | 218240 | b69d278174b1c6cb1ad24db29289c0b267b882551955d9d05755c0c073059bde |
+| analysis/partitions/vendor/lib64/libwifi-hal-ctrl.so | stock-rom-wlan/partitions/vendor/lib64/libwifi-hal-ctrl.so | 11320 | 4fba979f9dd06f244c08340161946515fac062a03f4bd23696210bb808b1c85c |
+| analysis/partitions/vendor/lib64/libwifi-hal-qcom.so | stock-rom-wlan/partitions/vendor/lib64/libwifi-hal-qcom.so | 450648 | 6553770c7961af18b97f96bbbe4d31cef071503e274e82f7029cf226460a31ab |
+| analysis/partitions/vendor/lib64/libwifi-hal.so | stock-rom-wlan/partitions/vendor/lib64/libwifi-hal.so | 460792 | ccf6b72ed707f634cfa96d7f27c3fc4d88ee581259d33ae1defe7f7fe347ea21 |
+| analysis/partitions/vendor/lib64/libwpa_client.so | stock-rom-wlan/partitions/vendor/lib64/libwpa_client.so | 29080 | 567f60644b0dcb7a2e616e349dc9095f3a29ac46529b112247d503c336da7656 |
+| analysis/partitions/vendor/lib64/libxtwifi_server_protocol.so | stock-rom-wlan/partitions/vendor/lib64/libxtwifi_server_protocol.so | 624704 | cad6a490239f4a9dce255ee83ac2013c6728ef77415b68013c922ae5654a750b |
+| analysis/partitions/vendor/lib64/libxtwifi_server_protocol_uri_v3.so | stock-rom-wlan/partitions/vendor/lib64/libxtwifi_server_protocol_uri_v3.so | 876816 | 6ba321570a35dfe7993aa81e7e71a34768d8412e708123eca0d64729cbe9a3ab |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.data.iwlan@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.data.iwlan@1.0.so | 214288 | dca92539574ee4016789db1b89dff89f4ce3058028c10d89651a0d11959b6006 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.0.so | 141776 | 217f4a07bd48300644bde4dad220d2c8ba63deec2f4d8a25a35252913f8dbcd2 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.1.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.1.so | 155680 | 5ce3f08eaf7476e3a9f7986fa876ee8c2f3d4d934fa0282c7e628eacd4823b5f |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.2.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.hostapd@1.2.so | 117784 | 02c9cbaf3004f69cf5eadb918d8e5f9487aea050065af9420176fb8196f486da |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.keystore@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.keystore@1.0.so | 76856 | d3f178899cc433518f4a405764aa1809ee94a3192d820615348b6b6032113243 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.0.so | 592328 | 35aed958296317aceb08dbc0e954af43f59132a5aa761f298cbcfa34d2ce5571 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.1.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.1.so | 165584 | de7c4ec6049cf88dbd16dac7f4ad618fd33993dc1ee7c54cd238630c34473e98 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.2.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.supplicant@2.2.so | 179528 | d67c0b17ce1826ba5bff4d635929ef12f67917ec84a1ab3141caf0a3d223c41e |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifi.wifilearner@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifi.wifilearner@1.0.so | 85600 | b56300ea0daa438c5fad9bd51b97dbc7e329216a7b0b84d2df00bed10987e073 |
+| analysis/partitions/vendor/lib64/vendor.qti.hardware.wifidisplaysession@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.qti.hardware.wifidisplaysession@1.0.so | 856224 | efef2ff892b7ee3f5982d82a8358b79f571a83bd843b8f686442b24cb4538c9f |
+| analysis/partitions/vendor/lib64/vendor.xiaomi.cit.wifi@1.0.so | stock-rom-wlan/partitions/vendor/lib64/vendor.xiaomi.cit.wifi@1.0.so | 141736 | 403c01bf529ec6a9d98cc1e26b3d05e9cdf5721fdf90442731f4e00b572bbe99 |
+| analysis/partitions/vendor/overlay/WifiResTarget.apk | stock-rom-wlan/partitions/vendor/overlay/WifiResTarget.apk | 8542 | 45ac9d86099427ceba579d54ea40300879359932e97869bf1cc400e81e5ca122 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/bt/slim/qca6390.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/bt/slim/qca6390.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/async.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/async.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/genl.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/genl.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/qca6390.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/qca6390.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/qmi/svc.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/qmi/svc.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/utils.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss/utils.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss2.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/cnss2.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/i2c/rtc6226/qca.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/i2c/rtc6226/qca.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/admtek.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/admtek.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ath.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ath.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/atmel.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/atmel.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/broadcom.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/broadcom.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/cisco.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/cisco.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/intel.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/intel.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/intersil.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/intersil.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/marvell.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/marvell.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/mediatek.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/mediatek.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/quantenna.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/quantenna.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ralink.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ralink.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/realtek.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/realtek.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/rsi.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/rsi.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/st.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/st.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ti.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/ti.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/zydas.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/config/wlan/vendor/zydas.h | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/platform_data/qcom_wcnss_device.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/platform_data/qcom_wcnss_device.h | 165 | a7e904f0082ed9eec515b749c0c7d0251ff9ab9cee4e1c906566ae9663be9415 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/soc/qcom/wcnss_ctrl.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/soc/qcom/wcnss_ctrl.h | 494 | d414c3241483987b36f7393f6bd66f6c2712e294ad0c16291f2be3056e185a92 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/wcnss_wlan.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/linux/wcnss_wlan.h | 5853 | 8fa5e9dd54670895071e45fd14623f0f9d93f1043833e59d716777db30c60f15 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss2.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss2.h | 7930 | 21c298334b2efca34c10c39d927a7316bfc3ab5aa059b2a97bea5f064fd36b14 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_nl.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_nl.h | 911 | 2da96692dc7d5031460d49ad91fc173fa3bf91cf0422f443cf59537db41dc7ff |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_prealloc.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_prealloc.h | 337 | 6645e1658315e569f799f6232f9d8cc3aa1bd1c678a2c4639e68b32a8e257573 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_utils.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/cnss_utils.h | 1300 | fd1189f9eec2c6366eaaeb8864099807cd111b263c93e0394e00741d91f73399 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/virt_wifi.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/net/virt_wifi.h | 537 | 9e6b91a36c1e67ff94e63ab63ad5ccbc2409211aa610edd60b1fab9a60c3194c |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/soc/qcom/icnss.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/soc/qcom/icnss.h | 4440 | 45edf9c891eee66e88713aa0cb9cc00a9701e36834e0304567e938a22f0a2e29 |
+| analysis/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/soc/qcom/icnss2.h | stock-rom-wlan/raw-partition-scan/boot.img.extracted/_boot.img.extracted/_15986A0.extracted/include/soc/qcom/icnss2.h | 6191 | 635a801325eb9a7f4dba0c96eb51acbd9e564b9f8539d2f13158005f3ba069f8 |
 
-## Handling
+## Skipped candidates
 
-The workflow stages allowlisted WLAN modules/assets from extracted vendor/system/odm partitions into recovery/root and commits them with the audit reports. It does not copy the complete ROM, modem image, NV/EFS partitions, or rmt_storage executable.
+
+Collected: 225
+Skipped: 0
