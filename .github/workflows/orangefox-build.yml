@@ -99,13 +99,14 @@ jobs:
         git clone --depth=1 https://gitlab.com/OrangeFox/sync.git
         cd sync
 
-        # Pass shallow/current-branch options to the repo sync invocation
-        # used by orangefox_sync.sh. Fail rather than silently doing a full sync.
-        if ! grep -qE 'repo[[:space:]]+sync' orangefox_sync.sh; then
-          echo "Could not locate repo sync command in orangefox_sync.sh"
+        # Configure repo init for depth-1 project checkouts, then sync only
+        # each project's current manifest branch. --depth belongs to repo init.
+        if ! grep -qE 'repo[[:space:]]+init' orangefox_sync.sh || ! grep -qE 'repo[[:space:]]+sync' orangefox_sync.sh; then
+          echo "Could not locate repo init/repo sync commands in orangefox_sync.sh"
           exit 1
         fi
-        sed -i -E '/^[[:space:]]*#/! s/(repo[[:space:]]+sync)([[:space:]]|$)/\1 --depth=1 --current-branch --no-tags\2/g' orangefox_sync.sh
+        sed -i -E '/^[[:space:]]*#/! s/(repo[[:space:]]+init)([[:space:]]|$)/\\1 --depth=1 --current-branch --no-tags\\2/g' orangefox_sync.sh
+        sed -i -E '/^[[:space:]]*#/! s/(repo[[:space:]]+sync)([[:space:]]|$)/\\1 -c\\2/g' orangefox_sync.sh
 
         ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
 
