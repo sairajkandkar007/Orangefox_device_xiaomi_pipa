@@ -8,10 +8,7 @@ on property:twrp.firmware.mounted=true && property:ro.twrp.fastbootd=0
 # Never auto-start vendor rmt_storage from recovery. It can write modem NV/EFS.
 # The read-only wrapper is intentionally not started as part of WLAN bring-up.
 on property:twrp.wlan.drivers.loaded=true
-    write /dev/kmsg "[PIPA-WLAN] WLAN module load completed; modem NV/EFS services remain stopped"
-
-# The vendor CNSS daemon expects /data to be available.
-on post-fs-data
+    write /dev/kmsg "[PIPA-WLAN] WLAN module loaded; starting CNSS support service; modem NV/EFS services remain stopped"
     start vendor.cnss-daemon
 
 # OrangeFox raises this property when the user enables Wi-Fi.
