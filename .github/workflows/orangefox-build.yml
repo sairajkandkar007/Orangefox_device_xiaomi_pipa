@@ -40,8 +40,6 @@ on:
         type: choice
         options:
         - boot
-        - recovery
-        - vendorboot
       LDCHECK:
         description: 'Path of blobs to check'
         required: true
@@ -55,7 +53,7 @@ on:
         description: 'Include recovery installer zip'
         type: boolean
         required: true
-        default: true
+        default: false
 
 jobs:
   build:
@@ -72,7 +70,7 @@ jobs:
       BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET || 'boot' }}
       LDCHECK: ${{ github.event.inputs.LDCHECK || 'system/bin/qseecomd' }}
       RECOVERY_TAR: ${{ github.event.inputs.RECOVERY_TAR || 'false' }}
-      RECOVERY_INSTALLER: ${{ github.event.inputs.RECOVERY_INSTALLER || 'true' }}
+      RECOVERY_INSTALLER: ${{ github.event.inputs.RECOVERY_INSTALLER || 'false' }}
     permissions:
       contents: write
     steps:
@@ -104,7 +102,7 @@ jobs:
         sudo bash setup/android_build_env.sh
 
     - name: Set-up Manifest (shallow sync)
-      if: env.MANIFEST_BRANCH == '11.0' || env.MANIFEST_BRANCH == '12.1' || env.MANIFEST_BRANCH == '14.1'
+      if: env.MANIFEST_BRANCH == '12.1'
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
         cd ${GITHUB_WORKSPACE}/OrangeFox
