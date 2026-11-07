@@ -1,0 +1,20 @@
+[
+  {
+    "file": "analysis/modem/rea/windows/non-hlos-window-00.bin",
+    "base_offset": 0,
+    "length": 125829120,
+    "sha256": "4f53669d68de51136f0105751806006bffaf51f9293e85e9bbc2e3b48eb9a40e"
+  },
+  {
+    "file": "analysis/modem/rea/windows/non-hlos-window-01.bin",
+    "base_offset": 125829120,
+    "length": 125829120,
+    "sha256": "2079370b41a4f8a02d408dd3de3cc213f034dc7eccc96826193b9003c8c8ad24"
+  },
+  {
+    "file": "analysis/modem/rea/windows/non-hlos-window-02.bin",
+    "base_offset": 251658240,
+    "length": 19836928,
+    "sha256": "6fb2714ff850fd54a0e548c4231fcca59332aace58fa13fd22cab5b2127f0cdb"
+  }
+]
