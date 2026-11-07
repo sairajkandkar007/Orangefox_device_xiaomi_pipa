@@ -1,4 +1,0 @@
-===== NON-HLOS.bin =====
-analysis/modem/images/NON-HLOS.bin: DOS/MBR boot sector, code offset 0x3c+2, OEM-ID "MSDOS5.0", Bytes/sector 4096, sectors/cluster 4, root entries 512, Media descriptor 0xf8, sectors/FAT 15, sectors/track 63, heads 255, sectors 114688 (volumes > 32 MB), serial number 0xbc614e, unlabeled, FAT (16 bit)
-6349e11dc155809eadff5780c7f38d50b7428be99f09f921335fcdf80d2a7845  analysis/modem/images/NON-HLOS.bin
-FAT/MBR modem container detected; attempting read-only mtools extraction.

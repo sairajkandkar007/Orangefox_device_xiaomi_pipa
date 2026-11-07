@@ -1,8 +1,0 @@
- Volume in drive : has no label
- Volume Serial Number is 00BC-614E
-Directory for ::/
-
-pcafui~2     <DIR>     2011-07-05  17:30  image
-        1 file                    0 bytes
-                        198 262 784 bytes free
-
