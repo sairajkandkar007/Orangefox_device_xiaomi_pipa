@@ -107,10 +107,10 @@ TARGET_SCREEN_HEIGHT := 2880
 TARGET_SCREEN_WIDTH := 1800
 TW_FRAMERATE := 120
 
-# Android 13 base (API 33)
-PLATFORM_VERSION := 13
+# Android 16 recovery userspace (OrangeFox fox_12.1 A16 device configuration).
+# The device vendor image remains based on the original Android 13 release.
+PLATFORM_VERSION := 16
 PLATFORM_VERSION_LAST_STABLE := $(PLATFORM_VERSION)
-TARGET_RECOVERY_DEVICE_API_LEVEL := 33
 
 # WLAN — Pipa QCA6390 CLD3 recovery driver.
 # Driver and stock module metadata are staged in recovery/root/vendor/lib/modules.
