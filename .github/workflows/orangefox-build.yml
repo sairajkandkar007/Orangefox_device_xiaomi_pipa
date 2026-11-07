@@ -157,7 +157,7 @@ jobs:
         if [ "${LUNCH_STATUS}" -ne 0 ]; then
           echo "FATAL: lunch twrp_pipa-eng failed (exit ${LUNCH_STATUS})."
           echo "Available Pipa product definitions:"
-          find device/xiaomi/pipa -maxdepth 2 \\( -name 'AndroidProducts.mk' -o -name 'twrp_pipa.mk' \\) -print
+          ls -l device/xiaomi/pipa/AndroidProducts.mk device/xiaomi/pipa/twrp_pipa.mk
           exit "${LUNCH_STATUS}"
         fi
 
