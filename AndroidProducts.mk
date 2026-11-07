@@ -3,6 +3,6 @@ PRODUCT_MAKEFILES := \
     $(LOCAL_DIR)/twrp_pipa.mk
 
 COMMON_LUNCH_CHOICES := \
-    twrp_pipa-user \
-    twrp_pipa-userdebug \
-    twrp_pipa-eng
+    twrp_pipa-ap2a-user \
+    twrp_pipa-ap2a-userdebug \
+    twrp_pipa-ap2a-eng
