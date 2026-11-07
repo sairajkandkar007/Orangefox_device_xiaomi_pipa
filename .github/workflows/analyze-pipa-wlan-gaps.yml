@@ -36,8 +36,25 @@ jobs:
       - name: Install firmware analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 binutils kmod cpio aria2 jq binwalk p7zip-full
+          sudo apt-get install -y e2fsprogs erofs-utils android-sdk-libsparse-utils file python3 python3-pip binutils kmod cpio aria2 jq binwalk p7zip-full mtools dosfstools procps libfontconfig1-dev liblzma-dev squashfs-tools lz4 device-tree-compiler
 
+      - name: Set up Node.js for REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Set up Rust for Binwalk 3
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install pinned REA firmware-analysis tools
+        run: |
+          set -euo pipefail
+          cargo install binwalk --version 3.1.0 --locked
+          python3 -m pip install --user --break-system-packages 'unblob==26.6.4'
+          npm install --global rea-agents
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          binwalk --version
+          unblob --version
+          rea --version || true
       - name: Set up Go for LP tools
         uses: actions/setup-go@v5
         with:
@@ -308,6 +325,12 @@ jobs:
           echo "Modem image candidates: $(find analysis/modem/images -maxdepth 1 -type f | wc -l)"
           echo "Extracted modem files: $(find analysis/modem/extracted analysis/modem/binwalk -type f 2>/dev/null | wc -l)"
 
+      - name: Run REA static reverse engineering on modem partition
+        id: rea_modem
+        run: |
+          set -euo pipefail
+          chmod +x scripts/rea_modem_analysis.sh
+          scripts/rea_modem_analysis.sh
       - name: Inspect boot and vendor_boot images with MagiskBoot
         run: |
           set -euo pipefail
@@ -871,6 +894,7 @@ jobs:
           # Android filesystem trees, modem NV/EFS data, or rmt_storage.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
           if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
+          if [ -f reports/PIPA_MODEM_REA_ANALYSIS.md ]; then git add -f reports/PIPA_MODEM_REA_ANALYSIS.md; fi
           git add -f recovery/root/vendor recovery/root/system recovery/root/odm 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
@@ -878,7 +902,7 @@ jobs:
             firmware/release-assets.txt \
             firmware/rom-image-list.txt \
             analysis/rom-image-inventory.txt \
-            analysis/super-partition-inventory.txt; do
+            analysis/super-partition-inventory.txt \\\n            analysis/modem/modem-extraction.log \\\n            analysis/modem/modem-file-list.txt \\\n            analysis/modem/rea-file-list.txt; do
             if [ -f "$output" ]; then git add -f "$output"; fi
           done
 
