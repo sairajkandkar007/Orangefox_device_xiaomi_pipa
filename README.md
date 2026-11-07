@@ -1,69 +1,40 @@
-# Orange Fox (OFRP) for Xiaomi Pad 6 (pipa)  
-Device: Xiaomi Pad 6 (pipa), Snapdragon 870, A/B with dynamic partitions. The recovery uses the OrangeFox fox_12.1 build manifest and the A16-compatible device configuration; the original stock vendor base is Android 13.  
+# OrangeFox Recovery for Xiaomi Pad 6 (pipa)
 
-![OFRP](https://image.ibb.co/cTMWux/logo.jpg "OFRP")  
-====================================================
-# Current Status
-- Display works normally  
-- To ensure proper UI alignment, there are margins on the left and right sides of the screen  
-- Basic recovery functions are working  
-- If you encounter /data decryption failure after flashing HyperOS (Android 15), simply set a lock screen password after booting into the system  
+Unofficial OrangeFox device tree for the Xiaomi Pad 6 (codename `pipa`).
 
-# How to Use
-Go to the [Release](https://github.com/pipaDB/OFRP-device_xiaomi_pipa/releases) page, expand the Assets section, and download the 7z archive.  
-Extract all files, open the extracted folder, and run the `recovery-twrp一键刷入工具.bat` script to flash according to the prompts. If adb detects your device, it will automatically reboot into recovery.  
-Thanks to wzsx150 for the flashing tool script.  
+## Device configuration
 
-After a successful temporary boot, you can go to "Menu" > "More" > "Install current OrangeFox" > swipe to confirm, to install OrangeFox permanently to the boot partition, replacing the stock recovery.  
-Alternatively, you can flash the OrangeFox zip installer to achieve the same.  
-Permanently installing OrangeFox will replace the current ramdisk, so Magisk root will be lost.  
-You need to flash the Magisk zip again to regain root,  
-or backup your current boot image, patch it with Magisk, and restore it to have both OrangeFox and Magisk coexist.  
-Apatch is not affected by permanent installation; installation order does not matter.  
+- SoC: Qualcomm Snapdragon 870 (SM8250 family)
+- Architecture: ARM64
+- Partition layout: A/B, Virtual A/B and dynamic partitions
+- Recovery target: `bootimage`
+- OrangeFox manifest: `fox_14.1`
+- Lunch target: `twrp_pipa-ap2a-eng`
 
-Note:  
-On VAB devices, after flashing a ROM, the next boot will switch to the other slot and requires a reboot to take effect.  
-For example, if your current system is on slot a, the ROM will be flashed to slot b, and you need to reboot to boot into slot b.  
-If you flash Magisk in recovery without rebooting, it will be installed to slot a, and slot b will not have root after booting.  
+## Build
 
-You can also use tools like "Gaiji Assistant" (PC version) or FastbootEnhance to simplify the flashing process.  
+Sync the OrangeFox 14.1 sources using the official OrangeFox sync instructions. Then place this repository at `device/xiaomi/pipa`.
 
-# How to Build
-Download the OFRP source code and clone this device tree into the appropriate location.  
-For example, if your OrangeFox source root is `~/fox_12.1`, place this repository at `~/fox_12.1/device/xiaomi/pipa/`:  
+From the OrangeFox source root:
+
 ```bash
-cd ~/fox_12.1
-mkdir -p device/xiaomi
-cd device/xiaomi
-git clone https://github.com/sairajkandkar007/orangefox_device_xiaomi_pipa.git pipa
-```
-From the source root directory, run:  
-```bash
-. build/envsetup.sh && export FOX_BUILD_DEVICE=pipa && lunch twrp_pipa-eng && mka adbd bootimage
+source build/envsetup.sh
+export ALLOW_MISSING_DEPENDENCIES=true
+export LC_ALL=C
+export FOX_BUILD_DEVICE=pipa
+lunch twrp_pipa-ap2a-eng
+mka adbd bootimage
 ```
 
-# Cloud Build
-Use Github Actions to build OrangeFox online.  
-For example, if your Github username is "JohnSmith":  
-1. Open the [OrangeFox Action Builder](https://github.com/pipaDB/OrangeFox-Action-Builder) repo and click the `Fork` button in the top right corner.  
-![image](https://user-images.githubusercontent.com/37921907/177914706-c92476c5-7e14-4fb3-be94-0c8a11dae874.png)
-2. After the page redirects, you will see the new repo under your username.  
-![image](https://user-images.githubusercontent.com/37921907/177915106-5bde6fc9-303c-479e-b290-22b48efd1e4e.png)
-3. Go to the `Actions` tab > `All workflows` > `OrangeFox - Build` > `Run workflow`  
-![image](https://user-images.githubusercontent.com/37921907/177915304-8731ed80-1d49-48c9-9848-70d0ac8f2720.png)
-4. Fill in the parameters as follows:  
-OrangeFox Branch  
-`12.1`  
-Custom Recovery Tree  
-`https://github.com/ymdzq/OFRP-device_xiaomi_pipa`  
-Custom Recovery Tree Branch  
-`fox_12.1-a16`  
-Specify your device path.  
-`device/xiaomi/pipa`  
-Specify your Device Codename.  
-`pipa`  
-Specify your Build Target  
-`boot`  
-![image](https://user-images.githubusercontent.com/37921907/177915346-71c29149-78fb-4a00-996f-5d84ffc9eb8c.png)
-5. After filling in, click "Run workflow" to start the build.
-6. You can download the build result from the Releases page of your forked repo.
+The build should produce a boot image under `out/target/product/pipa/`. Verify the generated image and test it on the device before distributing or flashing it.
+
+## Device-tree contents
+
+- `BoardConfig.mk`, product makefiles and `vendorsetup.sh`: build configuration
+- `recovery/root/`: device-specific recovery ramdisk files, libraries, modules and QCA6390 WLAN assets
+- `prebuilt/kernel` and `prebuilt/dtb`: recovery kernel and device tree
+- `bootctrl/`, `gpt-utils/` and `kernel-headers/`: boot-control and GPT support
+
+## Important
+
+This tree targets OrangeFox 14.1 and AP2A. Do not substitute a 12.1 manifest or a non-AP2A lunch target. A successful compilation does not establish that the image boots or that touch, decryption, flashing, backup/restore and WLAN work; validate each function on the Pad 6.

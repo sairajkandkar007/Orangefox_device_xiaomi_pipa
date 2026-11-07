@@ -1,6 +1,0 @@
-mi_ext_a.img	378626048 bytes
-odm_a.img	134217728 bytes
-product_a.img	3205959680 bytes
-system_a.img	810930176 bytes
-system_ext_a.img	642936832 bytes
-vendor_a.img	896200704 bytes

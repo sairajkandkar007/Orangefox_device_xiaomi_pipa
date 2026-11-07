@@ -30,13 +30,11 @@ PRODUCT_SOONG_NAMESPACES += \
     $(LOCAL_PATH)
 
 # Copy the complete device recovery ramdisk overlay.
-# Use explicit source:destination pairs; find-copy-subdir-files can expand to
-# source-only entries on some OrangeFox/Android build branches, which makes
-# PRODUCT_COPY_FILES reject the product during dumpvars.
+# Use explicit source:destination pairs to avoid source-only PRODUCT_COPY_FILES entries.
 PIPA_RECOVERY_ROOT := $(LOCAL_PATH)/recovery/root
 PRODUCT_COPY_FILES += $(foreach f,$(shell find $(PIPA_RECOVERY_ROOT) -type f),$(f):recovery/root/$(patsubst $(PIPA_RECOVERY_ROOT)/%,%,$(f)))
 
-# Recovery Wi-Fi userspace support (OrangeFox 12.1 A16 configuration).
+# Recovery Wi-Fi userspace support.
 TW_INCLUDE_WIFI := true
 
 TWRP_REQUIRED_MODULES += miui_prebuilt
