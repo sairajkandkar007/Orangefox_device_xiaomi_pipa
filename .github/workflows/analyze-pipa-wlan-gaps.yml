@@ -391,6 +391,8 @@ jobs:
                   return True
               if name.startswith(("android.hardware.wifi.", "libwifi", "libwpa", "libqti-wifi")):
                   return True
+              if any(x in path for x in ("/wifi/", "/wlan/", "/cnss/", "/qca6390/", "/qca_cld/")):
+                  return True
               if name.endswith((".rc", ".ini", ".conf", ".xml")) and any(
                   x in path for x in ("wifi", "wlan", "cnss", "qca6390", "supplicant", "hostapd")
               ):
@@ -755,11 +757,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Commit the staged, allowlisted WLAN recovery assets plus reports.
+          # Commit the collected WLAN-related stock-ROM files plus reports.
           # Never commit the downloaded ROM, partition images, full extracted
           # Android filesystem trees, modem NV/EFS data, or rmt_storage.
           git add -f reports/PIPA_WLAN_GAP_ANALYSIS.md
-          if [ -f reports/PIPA_WLAN_STAGED_ASSETS.md ]; then git add -f reports/PIPA_WLAN_STAGED_ASSETS.md; fi
           git add -f stock-rom-wlan/ 2>/dev/null || true
           if [ -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md ]; then git add -f reports/PIPA_WLAN_STOCK_ROM_FILE_INVENTORY.md; fi
           for output in \
