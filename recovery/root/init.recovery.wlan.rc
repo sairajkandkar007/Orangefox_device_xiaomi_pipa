@@ -21,3 +21,11 @@ on property:sys.fox.wlan.up=1
     mkdir /tmp/recovery/sockets 0777 root root
     restart wpa_supplicant
     setprop sys.fox.wlan.up 0
+
+# Stock Pipa CNSS userspace companion for the QCA6390 WLAN driver.
+service vendor.cnss-daemon /vendor/bin/cnss-daemon
+    class late_start
+    user root
+    group root system wifi inet
+    disabled
+    seclabel u:r:recovery:s0
