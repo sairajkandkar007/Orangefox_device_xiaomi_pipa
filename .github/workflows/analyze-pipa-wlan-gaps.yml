@@ -295,12 +295,48 @@ jobs:
               fi
             else
               rmdir "$out" 2>/dev/null || true
-              echo "No top-level EROFS/ext filesystem detected; running signature scan only." | tee -a analysis/modem/modem-extraction.log
-              scan_dir="analysis/modem/binwalk/${base%.*}"
-              mkdir -p "$scan_dir"
-              # Extraction is confined to the GitHub runner and the modem image.
-              # No modemst/fsg/NV partition is passed to binwalk.
-              binwalk -eM --directory "$scan_dir" "$image" >> analysis/modem/modem-extraction.log 2>&1 || true
+              if file "$image" | grep -Eqi 'FAT(12|16|32)|DOS/MBR'; then
+                echo "FAT/MBR modem container detected; attempting read-only mtools extraction." | tee -a analysis/modem/modem-extraction.log
+                mkdir -p "$out"
+                image_spec="$image"
+                if ! mdir -i "$image_spec" ::/ > "analysis/modem/fat-root-listing.txt" 2>&1; then
+                  python3 - "$image" <<'PY' > analysis/modem/fat-offset-candidates.txt
+          import sys
+          from pathlib import Path
+          data = Path(sys.argv[1]).read_bytes()[:512]
+          if len(data) >= 512 and data[510:512] == b"\\x55\\xaa":
+              for i in range(4):
+                  entry = data[446 + 16*i:462 + 16*i]
+                  ptype = entry[4]
+                  start = int.from_bytes(entry[8:12], "little")
+                  count = int.from_bytes(entry[12:16], "little")
+                  if ptype and start and count:
+                      for sector in (512, 4096):
+                          print(start * sector)
+          PY
+                  while IFS= read -r offset; do
+                    [ -n "$offset" ] || continue
+                    candidate="$image@@$offset"
+                    if mdir -i "$candidate" ::/ > "analysis/modem/fat-root-listing-$offset.txt" 2>&1; then
+                      image_spec="$candidate"
+                      echo "$offset" > analysis/modem/fat-selected-byte-offset.txt
+                      break
+                    fi
+                  done < analysis/modem/fat-offset-candidates.txt
+                fi
+                if mdir -i "$image_spec" ::/ > analysis/modem/fat-selected-listing.txt 2>&1; then
+                  mcopy -s -i "$image_spec" '::*' "$out/" > analysis/modem/fat-copy.stdout 2> analysis/modem/fat-copy.stderr || true
+                else
+                  echo "FAT extraction failed at byte zero and parsed MBR offsets." | tee -a analysis/modem/modem-extraction.log
+                fi
+              else
+                echo "No top-level filesystem detected; running signature scan only." | tee -a analysis/modem/modem-extraction.log
+                scan_dir="analysis/modem/binwalk/${base%.*}"
+                mkdir -p "$scan_dir"
+                # Extraction is confined to the GitHub runner and the modem image.
+                # No modemst/fsg/NV partition is passed to binwalk.
+                binwalk -eM --directory "$scan_dir" "$image" >> analysis/modem/modem-extraction.log 2>&1 || true
+              fi
             fi
           done
 
