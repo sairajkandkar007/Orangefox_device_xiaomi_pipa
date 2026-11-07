@@ -13,12 +13,10 @@ on:
       MANIFEST_BRANCH:
         description: 'OrangeFox Branch'
         required: true
-        default: '14.1'
+        default: '12.1'
         type: choice
         options:
-        - 14.1
         - 12.1
-        - 11.0
       DEVICE_TREE:
         description: 'Custom Recovery Tree'
         required: true
@@ -66,7 +64,7 @@ jobs:
     if: github.event_name == 'push' || github.event.repository.owner.id == github.event.sender.id
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      MANIFEST_BRANCH: ${{ github.event.inputs.MANIFEST_BRANCH || '14.1' }}
+      MANIFEST_BRANCH: ${{ github.event.inputs.MANIFEST_BRANCH || '12.1' }}
       DEVICE_TREE: ${{ github.event.inputs.DEVICE_TREE || 'https://github.com/sairajkandkar007/orangefox_device_xiaomi_pipa' }}
       DEVICE_TREE_BRANCH: ${{ github.event.inputs.DEVICE_TREE_BRANCH || 'main' }}
       DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH || 'device/xiaomi/pipa' }}
@@ -134,24 +132,16 @@ jobs:
         cd ${{ env.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-    - name: Check Manifest Branch
-      uses: haya14busa/action-cond@v1
-      id: fox_branch
-      with:
-        cond: ${{ env.MANIFEST_BRANCH == '14.1' }}
-        if_true: lunch twrp_pipa-ap2a-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
-        if_false: lunch twrp_pipa-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image
-
     - name: Building OrangeFox
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
-        set +e
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         export LC_ALL="C"
         export FOX_BUILD_DEVICE=pipa
-        set -e
-        ${{ steps.fox_branch.outputs.value }}
+        lunch twrp_pipa-eng
+        make clean
+        mka adbd ${{ env.BUILD_TARGET }}image
 
     - name: Set Build Date # Output will be use in Release
       run: |
@@ -165,18 +155,19 @@ jobs:
     - name: Check if Recovery Exist
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}
-        if [ -f out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img ]; then
-            echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
-            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-        elif [ -f out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img ]; then
-            echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
-            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum out/target/product/${{ env.DEVICE_NAME }}/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-        else
-            echo "Recovery out directory is empty."
+        OUTPUT_DIR="out/target/product/${{ env.DEVICE_NAME }}"
+        if ! compgen -G "${OUTPUT_DIR}/OrangeFox*.img" > /dev/null; then
+            OUTPUT_DIR="${OUTPUT_DIR}/target/product/${{ env.DEVICE_NAME }}"
+        fi
+        IMAGE=$(compgen -G "${OUTPUT_DIR}/OrangeFox*.img" | head -n 1 || true)
+        if [ -z "${IMAGE}" ] || [ ! -s "${IMAGE}" ]; then
+            echo "No non-empty OrangeFox image found for ${{ env.DEVICE_NAME }}."
+            find "out/target/product/${{ env.DEVICE_NAME }}" -maxdepth 4 -type f -printf '%p (%s bytes)\\n' || true
             exit 1
         fi
+        echo "CHECK_IMG_IS_OK=true" >> "$GITHUB_ENV"
+        echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ env.MANIFEST_BRANCH }}/${OUTPUT_DIR}" >> "$GITHUB_ENV"
+        echo "MD5_IMG=$(md5sum "${IMAGE}" | cut -d ' ' -f 1)" >> "$GITHUB_ENV"
 
     - name: Rename the Recovery
       run: |
